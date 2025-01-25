@@ -32,6 +32,8 @@ async def printer_websocket(websocket: WebSocket, printer_id: str):
 
                 if data.get("type") == "chamber_light":
                     await printer.set_light(data.get("data"))
+                elif data.get("type") == "force_refresh":
+                    await printer.force_refresh()
 
         except WebSocketDisconnect:
             pass

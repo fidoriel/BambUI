@@ -67,7 +67,7 @@ class AsyncCameraClient(CameraClient):
 
         self.streaming = True
 
-        def on_done(self, task):
+        def on_done(task: asyncio.tasks.Task):
             try:
                 task.result()
             except Exception as e:

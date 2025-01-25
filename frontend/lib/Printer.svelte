@@ -14,7 +14,7 @@
     import { CirclePlay } from "lucide-svelte";
     import { CircleStop } from "lucide-svelte";
     import { Lightbulb } from "lucide-svelte";
-    import { Cctv } from "lucide-svelte";
+    import { Cctv, RefreshCw } from "lucide-svelte";
     import { CircleGauge, Activity } from "lucide-svelte";
     import { File, Layers, Clock, Thermometer } from "lucide-svelte";
     import type { PrinterStatus } from "./printerModel";
@@ -134,6 +134,13 @@
             }),
         );
     }
+    function refreshConnection() {
+        ws?.send(
+            JSON.stringify({
+                type: "force_refresh",
+            }),
+        );
+    }
 </script>
 
 <div class="grid grid-flow-row-dense auto-rows-min grid-cols-1 gap-4 p-4 md:grid-cols-5">
@@ -208,6 +215,7 @@
                     color={printerSignOfLife ? "green" : "red"}
                 />
                 <Cctv class={imagePulse ? "animate-ping" : ""} color={imageSignOfLife ? "green" : "red"} />
+                <Button variant="outline" onclick={refreshConnection}><RefreshCw /></Button>
             </div>
         </div>
         <!-- Move Controls (Upper Right) -->

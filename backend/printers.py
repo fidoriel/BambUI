@@ -76,7 +76,7 @@ class Printer:
             )
             logger.info("Created new task for %s", self.name)
 
-            def on_done(task):
+            def on_done(task: asyncio.tasks.Task):
                 self.full_push = False
                 try:
                     task.result()
@@ -124,14 +124,22 @@ class Printer:
             )
             await self.start_printer_subscriber()
 
-    async def stop(self) -> None:
-        if self.subscribers:
+    async def stop(self, force: bool = False) -> None:
+        if self.subscribers and not force:
             logger.info(
                 "Not stopping %s %s because printer has connected users",
                 self.name,
                 self.model,
             )
             return
+
+        if force:
+            logger.info(
+                "Force stopping %s %s despite %d connected users",
+                self.name,
+                self.model,
+                len(self.subscribers),
+            )
 
         if self.camera_client is not None:
             await self.camera_client.stop_stream()
@@ -244,6 +252,12 @@ class Printer:
             )
         else:
             raise ConnectionError("Printer not connected")
+
+    async def force_refresh(self) -> None:
+        logger.info("force restarting %s", self.name)
+        await self.stop(force=True)
+        for callback in self.subscribers.values():
+            await self.start(callback)
 
 
 def parse_printers_from_env() -> dict[str, Printer]:
