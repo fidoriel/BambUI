@@ -6,13 +6,17 @@ from bambu_connect.utils.models import PrinterStatus
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Callable, Coroutine
 from typing import Literal, Any
+from pydantic import BaseModel
 from uuid import uuid4
-import base64
-
+from .types_ws import WsJpegImage
+from .printer_payload import pushall_command
 import ssl
 import asyncio
 from aiomqtt.client import MqttError, Client as MqttClient
 import json
+from .types_printer import PrinterRequest
+from .types_ws import WsError, WsMessage
+from .printer_ftp import PrinterFileSystemEntry, ftps_connection
 
 logger = getLogger(__name__)
 
@@ -32,6 +36,7 @@ class Printer:
     model: Literal["P1S"]
     username: str = "bblp"
     port: int = 8883
+    ftp_port: int = 990
 
     full_push: bool = False
     latest_image: bytes | None = None
@@ -56,18 +61,13 @@ class Printer:
     def request_topic(self) -> str:
         return f"device/{self.serial}/request"
 
-    def get_image_payload(self, image: bytes) -> dict[str, Any]:
-        return {
-            "type": "jpeg_image",
-            "data": base64.b64encode(image).decode("utf-8"),
-        }
+    @property
+    def is_idle_print(self) -> str:
+        return self.printer_status_values.get("print_type", "").lower() == "idle"
 
     async def image_callback(self, image: bytes) -> None:
         self.latest_image = image
-        payload = self.get_image_payload(image)
-
-        for callback in self.subscribers.values():
-            await callback(payload)
+        await self.callback_all_connected_ws(WsJpegImage.from_bytes(image))
 
     async def start_printer_subscriber(self):
         if self.printer_subscriber_task is None or self.printer_subscriber_task.done():
@@ -106,8 +106,6 @@ class Printer:
                 hostname=self.ip, access_code=self.access_code
             )
         if self.camera_client is not None:
-            if self.latest_image:
-                await callback(self.get_image_payload(self.latest_image))
             await self.camera_client.start_stream(self.image_callback)
 
         if self.mqtt_client is None:
@@ -147,18 +145,29 @@ class Printer:
 
         logger.info("Tasks for %s stopped", self.name)
 
-    async def callback_all_connected_ws(self, payload: dict[str, Any]) -> None:
-        for callback in self.subscribers.values():
-            await callback(payload)
-
-    async def send_ws_error(self, message: str) -> None:
-        await self.callback_all_connected_ws(
-            {"type": "error", "data": {"message": message}}
+    async def callback_all_connected_ws(
+        self, payload: dict[str, Any] | BaseModel
+    ) -> None:
+        payload_dict = (
+            payload.model_dump() if isinstance(payload, BaseModel) else payload
         )
 
-    async def publish_request(self, payload: str) -> None:
+        for callback in self.subscribers.values():
+            await callback(payload_dict)
+
+    async def send_ws_error(self, message: str) -> None:
+        await self.callback_all_connected_ws(WsError(message=message))
+
+    async def send_ws_message(self, message: str) -> None:
+        await self.callback_all_connected_ws(WsMessage(message=message))
+
+    async def publish_request(self, payload: str | dict[str, Any]) -> None:
+        if isinstance(payload, dict):
+            payload = json.dumps(payload)
+
         if self.mqtt_client is not None:
             try:
+                logger.info("Publishing %s to %s %s", payload, self.name, self.model)
                 await self.mqtt_client.publish(self.request_topic, payload)
             except MqttError:
                 await self.send_ws_error("Printer MQTT Connection Error")
@@ -168,9 +177,7 @@ class Printer:
 
     async def request_full_push(self) -> None:
         if not self.full_push:
-            await self.publish_request(
-                '{"pushing": { "sequence_id": 0, "command": "pushall"}, "user_id":"1234567890"}'
-            )
+            await self.publish_request(json.dumps(pushall_command()))
             logger.info("Requested full push from %s %s", self.name, self.model)
 
     async def printer_subscriber(self) -> None:
@@ -217,7 +224,7 @@ class Printer:
 
                             client_payload = {
                                 "type": "printer_status",
-                                "data": json.dumps(self.printer_status_values),
+                                "data": self.printer_status_values,
                             }
                             if self.full_push:
                                 await self.callback_all_connected_ws(client_payload)
@@ -244,20 +251,63 @@ class Printer:
             del self.subscribers[uuid]
             await self.stop()
 
-    async def set_light(self, status: bool) -> None:
-        mode = "on" if status else "off"
-        if self.mqtt_client:
-            await self.mqtt_client.publish(
-                self.request_topic, json.dumps({"system": {"led_mode": mode}})
-            )
-        else:
-            raise ConnectionError("Printer not connected")
-
     async def force_refresh(self) -> None:
         logger.info("force restarting %s", self.name)
         await self.stop(force=True)
         for callback in self.subscribers.values():
             await self.start(callback)
+
+    async def hanlde_request(self, request: PrinterRequest) -> None:
+        if request.data.check_idle and not self.is_idle_print:
+            logger.info("Printer is not Idle")
+            await self.send_ws_error("Printer not Idle")
+            return
+        await request.pre_server_command(self)
+        if command := request.to_command():
+            await self.publish_request(command)
+        await request.post_server_command(self)
+
+    async def list_ftps_files(self) -> list[PrinterFileSystemEntry]:
+        files = []
+        async with ftps_connection(
+            host=self.ip,
+            port=self.ftp_port,
+            user=self.username,
+            password=self.access_code,
+        ) as client:
+            raw_files = await client.list(recursive=False)
+            for path, meta in raw_files:
+                files.append(
+                    PrinterFileSystemEntry(
+                        path=path,
+                        entry_type=meta["type"],
+                        size=meta["size"],
+                        modify=meta["modify"],
+                    )
+                )
+        return files
+
+    async def upload_ftps_file(self, file: bytes, file_path: str) -> None:
+        async with ftps_connection(
+            host=self.ip,
+            port=self.ftp_port,
+            user=self.username,
+            password=self.access_code,
+        ) as client:
+            stream = await client.upload_stream(destination=file_path)
+            await stream.write(file)
+            stream.close()
+        return None
+
+    async def delete_ftps_file(self, file: bytes, file_path: str) -> None:
+        async with ftps_connection(
+            host=self.ip,
+            port=self.ftp_port,
+            user=self.username,
+            password=self.access_code,
+        ) as client:
+            client.remove(path=file_path)
+        return None
 
 
 def parse_printers_from_env() -> dict[str, Printer]:

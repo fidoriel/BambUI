@@ -5,6 +5,9 @@ description = ""
 authors = ["fidoriel <49869342+fidoriel@users.noreply.github.com>"]
 license = "AGPL"
 readme = "README.md"
+packages = [
+    { include = "backend" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -14,6 +17,7 @@ fastapi = "^0.115.6"
 uvicorn = { version = "^0.34.0", extras = ["standard"] }
 bambulabs-api = "^2.5.2"
 aiomqtt = "^2.3.0"
+aioftp = "^0.24.1"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.8.4"
@@ -24,5 +28,5 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [[tool.mypy.overrides]]
-module = ["bambu_connect.*"]
+module = ["bambu_connect.*", "aioftp.*"]
 ignore_missing_imports = true

@@ -3,6 +3,7 @@ from starlette.websockets import WebSocketState, WebSocketDisconnect
 from .printers import printers
 from logging import getLogger
 from typing import Any
+from .types_printer import PrinterRequest
 
 logger = getLogger(__name__)
 
@@ -27,15 +28,14 @@ async def printer_websocket(websocket: WebSocket, printer_id: str):
             while True:
                 data = await websocket.receive_json()
                 logger.info(
-                    "Received from user for %s %s %s", printer.name, printer.model, data
+                    "Received from user for %s %s %s",
+                    printer.name,
+                    printer.model,
+                    str(data)[:120],
                 )
-
-                if data.get("type") == "chamber_light":
-                    await printer.set_light(data.get("data"))
-                elif data.get("type") == "force_refresh":
-                    await printer.force_refresh()
+                await printer.hanlde_request(PrinterRequest.from_printer_json(data))
 
         except WebSocketDisconnect:
             pass
         except Exception as e:
-            logger.exception("Error with printer %s", printer_id, e)
+            logger.exception("Error with printer %s", printer_id, exc_info=e)

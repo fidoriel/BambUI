@@ -2,7 +2,7 @@
     import { onMount, onDestroy } from "svelte";
     import { useRoute } from "@dvcol/svelte-simple-router/router";
     import { getBackendUrl } from "$lib/utils.js";
-
+    import * as Tooltip from "$lib/components/ui/tooltip";
     import { Card, CardContent } from "$lib/components/ui/card";
     import { Button } from "$lib/components/ui/button";
     import { Slider } from "$lib/components/ui/slider";
@@ -19,10 +19,31 @@
     import { File, Layers, Clock, Thermometer } from "lucide-svelte";
     import type { PrinterStatus } from "./printerModel";
     import { toast } from "svelte-sonner";
-
+    import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
     import { Label } from "$lib/components/ui/label/index.js";
     import { Switch } from "$lib/components/ui/switch/index.js";
     import { ChevronsLeftRightEllipsis } from "lucide-svelte";
+    import { Input } from "$lib/components/ui/input/index.js";
+    import {
+        AuxFanSpeed,
+        ChamberFanSpeed,
+        ChamberLight,
+        FilamentLoad,
+        FilamentUnload,
+        ForceRefresh,
+        MoveE,
+        MoveHome,
+        MoveX,
+        MoveY,
+        MoveZ,
+        PartFanSpeed,
+        PausePrint,
+        PrinterCommand,
+        PrintFile,
+        PrintSpeed,
+        ResumePrint,
+        StopPrint,
+    } from "../typesPrinter";
 
     const speedModes = ["Silent", "Standard", "Sport", "Ludicrous"];
 
@@ -58,7 +79,7 @@
             const message = JSON.parse(event.data);
             if (message.type === "jpeg_image") {
                 imageSignOfLife = true;
-                const binaryData = atob(message.data);
+                const binaryData = atob(message.image);
                 const bytes = new Uint8Array(binaryData.length);
                 for (let i = 0; i < binaryData.length; i++) {
                     bytes[i] = binaryData.charCodeAt(i);
@@ -73,13 +94,15 @@
                 setTimeout(() => (imagePulse = false), 500);
             } else if (message.type === "printer_status") {
                 printerSignOfLife = true;
-                printerStatus = JSON.parse(message.data) as PrinterStatus;
+                printerStatus = message.data as PrinterStatus;
                 printerLightOn = printerStatus?.lights_report?.[0]?.mode === "on";
 
                 printerStatusPulse = true;
                 setTimeout(() => (printerStatusPulse = false), 500);
             } else if (message.type === "error") {
-                toast(message.data.message);
+                toast(message.message);
+            } else if (message.type === "message") {
+                toast(message.message);
             }
         };
 
@@ -126,21 +149,29 @@
         clearTimeout(reconnectTimer);
     });
 
-    function toggleLight() {
-        ws?.send(
-            JSON.stringify({
-                type: "chamber_light",
-                data: printerStatus?.lights_report?.[0]?.mode === "on" ? false : true,
-            }),
-        );
+    function sendWsCommand(request: PrinterCommand) {
+        ws?.send(JSON.stringify(request));
     }
-    function refreshConnection() {
-        ws?.send(
-            JSON.stringify({
-                type: "force_refresh",
-            }),
-        );
-    }
+
+    let file_to_print = $state<FileList | null>(null);
+
+    $effect(() => {
+        if (file_to_print) {
+            for (const file of file_to_print || []) {
+                console.log(`Uploading ${file.name}: ${file.size} bytes`);
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    if (!reader.result || typeof reader.result != "string") {
+                        alert("invalid file");
+                        return;
+                    }
+                    const base64String = reader.result.split(",")[1];
+                    sendWsCommand(new PrintFile(base64String, file.name));
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    });
 </script>
 
 <div class="grid grid-flow-row-dense auto-rows-min grid-cols-1 gap-4 p-4 md:grid-cols-5">
@@ -193,15 +224,92 @@
                             {printerStatus?.mc_remaining_time || "--"}
                         </span>
                     </div>
+                    <div class="flex flex-col items-start" title="Time Remaining">
+                        <Button variant="outline"><Label for="file">Print File</Label></Button>
+                        <input
+                            class="hidden"
+                            accept=".3mf"
+                            bind:files={file_to_print}
+                            id="file"
+                            name="file"
+                            type="file"
+                        />
+                    </div>
 
                     <!-- Print Progress -->
                     <Progress value={printerStatus?.mc_percent || 0} max={100} aria-label="Print progress" />
                 </div>
                 <div class="mt-4 flex flex-row items-center justify-between space-x-4">
                     <h3 class="text-lg">Status {printerStatus?.print_type} {printerStatus?.mc_percent}%</h3>
-                    <Button variant="outline" disabled><CirclePause /></Button>
-                    <Button variant="outline" disabled><CircleStop /></Button>
-                    <Button variant="outline" disabled><CirclePlay /></Button>
+
+                    <Tooltip.Provider>
+                        <Tooltip.Root>
+                            <Tooltip.Trigger>
+                                <Button
+                                    variant="outline"
+                                    onclick={() => {
+                                        sendWsCommand(new PausePrint());
+                                    }}><CirclePause /></Button
+                                ></Tooltip.Trigger
+                            >
+                            <Tooltip.Content>
+                                <p>Pause</p>
+                            </Tooltip.Content>
+                        </Tooltip.Root>
+                    </Tooltip.Provider>
+
+                    <AlertDialog.Root>
+                        <AlertDialog.Trigger>
+                            <Tooltip.Provider>
+                                <Tooltip.Root>
+                                    <Tooltip.Trigger>
+                                        <Button variant="outline">
+                                            <CircleStop />
+                                        </Button>
+                                    </Tooltip.Trigger>
+                                    <Tooltip.Content>
+                                        <p>Stop</p>
+                                    </Tooltip.Content>
+                                </Tooltip.Root>
+                            </Tooltip.Provider></AlertDialog.Trigger
+                        >
+                        <AlertDialog.Content>
+                            <AlertDialog.Header>
+                                <AlertDialog.Title>Are you absolutely sure to Stop the Print?</AlertDialog.Title>
+                                <AlertDialog.Description>
+                                    This action cannot be undone. The print cannot be resumed.
+                                </AlertDialog.Description>
+                            </AlertDialog.Header>
+                            <AlertDialog.Footer>
+                                <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+                                <AlertDialog.Action
+                                    onclick={() => {
+                                        sendWsCommand(new StopPrint());
+                                    }}
+                                >
+                                    Stop Print
+                                </AlertDialog.Action>
+                            </AlertDialog.Footer>
+                        </AlertDialog.Content>
+                    </AlertDialog.Root>
+
+                    <Tooltip.Provider>
+                        <Tooltip.Root>
+                            <Tooltip.Trigger>
+                                <Button
+                                    variant="outline"
+                                    onclick={() => {
+                                        sendWsCommand(new ResumePrint());
+                                    }}
+                                >
+                                    <CirclePlay />
+                                </Button></Tooltip.Trigger
+                            >
+                            <Tooltip.Content>
+                                <p>Resume</p>
+                            </Tooltip.Content>
+                        </Tooltip.Root>
+                    </Tooltip.Provider>
                 </div>
             </CardContent>
         </Card>
@@ -215,7 +323,12 @@
                     color={printerSignOfLife ? "green" : "red"}
                 />
                 <Cctv class={imagePulse ? "animate-ping" : ""} color={imageSignOfLife ? "green" : "red"} />
-                <Button variant="outline" onclick={refreshConnection}><RefreshCw /></Button>
+                <Button
+                    variant="outline"
+                    onclick={() => {
+                        sendWsCommand(new ForceRefresh());
+                    }}><RefreshCw /></Button
+                >
             </div>
         </div>
         <!-- Move Controls (Upper Right) -->
@@ -227,27 +340,81 @@
                         <!-- Y+ Controls -->
                         <div class="flex justify-center">
                             <div class="flex flex-col gap-2">
-                                <Button disabled variant="outline" class="w-16">Y+10</Button>
-                                <Button disabled variant="outline" class="w-16">Y+1</Button>
+                                <Button
+                                    onclick={() => {
+                                        sendWsCommand(new MoveY(+10));
+                                    }}
+                                    variant="outline"
+                                    class="w-16">Y+10</Button
+                                >
+                                <Button
+                                    onclick={() => {
+                                        sendWsCommand(new MoveY(+1));
+                                    }}
+                                    variant="outline"
+                                    class="w-16">Y+1</Button
+                                >
                             </div>
                         </div>
 
                         <!-- X Controls -->
                         <div class="flex gap-2">
-                            <Button disabled variant="outline" class="w-16">X-10</Button>
-                            <Button disabled variant="outline" class="w-16">X-1</Button>
-                            <Button disabled variant="outline" class="w-16">
+                            <Button
+                                onclick={() => {
+                                    sendWsCommand(new MoveX(+10));
+                                }}
+                                variant="outline"
+                                class="w-16">X+10</Button
+                            >
+                            <Button
+                                onclick={() => {
+                                    sendWsCommand(new MoveX(+1));
+                                }}
+                                variant="outline"
+                                class="w-16">X+1</Button
+                            >
+                            <Button
+                                onclick={() => {
+                                    sendWsCommand(new MoveHome());
+                                }}
+                                variant="outline"
+                                class="w-16"
+                            >
                                 <Home class="h-4 w-4" />
                             </Button>
-                            <Button disabled variant="outline" class="w-16">X+1</Button>
-                            <Button disabled variant="outline" class="w-16">X+10</Button>
+                            <Button
+                                onclick={() => {
+                                    sendWsCommand(new MoveX(-1));
+                                }}
+                                variant="outline"
+                                class="w-16">X-1</Button
+                            >
+                            <Button
+                                onclick={() => {
+                                    sendWsCommand(new MoveX(-10));
+                                }}
+                                variant="outline"
+                                class="w-16">X-10</Button
+                            >
                         </div>
 
                         <!-- Y- Controls -->
                         <div class="flex justify-center">
                             <div class="flex flex-col gap-2">
-                                <Button disabled variant="outline" class="w-16">Y-1</Button>
-                                <Button disabled variant="outline" class="w-16">Y-10</Button>
+                                <Button
+                                    onclick={() => {
+                                        sendWsCommand(new MoveY(-1));
+                                    }}
+                                    variant="outline"
+                                    class="w-16">Y-1</Button
+                                >
+                                <Button
+                                    onclick={() => {
+                                        sendWsCommand(new MoveY(-10));
+                                    }}
+                                    variant="outline"
+                                    class="w-16">Y-10</Button
+                                >
                             </div>
                         </div>
                     </div>
@@ -256,18 +423,66 @@
                     <div class="flex gap-8">
                         <!-- Z Controls -->
                         <div class="flex flex-col gap-2">
-                            <Button disabled variant="outline" class="w-16">Z+10</Button>
-                            <Button disabled variant="outline" class="w-16">Z+1</Button>
-                            <Button disabled variant="outline" class="w-16">Z-1</Button>
-                            <Button disabled variant="outline" class="w-16">Z-10</Button>
+                            <Button
+                                onclick={() => {
+                                    sendWsCommand(new MoveZ(+10));
+                                }}
+                                variant="outline"
+                                class="w-16">Z+10</Button
+                            >
+                            <Button
+                                onclick={() => {
+                                    sendWsCommand(new MoveZ(+1));
+                                }}
+                                variant="outline"
+                                class="w-16">Z+1</Button
+                            >
+                            <Button
+                                onclick={() => {
+                                    sendWsCommand(new MoveZ(-1));
+                                }}
+                                variant="outline"
+                                class="w-16">Z-1</Button
+                            >
+                            <Button
+                                onclick={() => {
+                                    sendWsCommand(new MoveZ(-10));
+                                }}
+                                variant="outline"
+                                class="w-16">Z-10</Button
+                            >
                         </div>
 
                         <!-- Filament Controls -->
                         <div class="flex flex-col gap-2">
-                            <Button disabled variant="outline" class="w-16">Retract</Button>
-                            <Button disabled variant="outline" class="w-16">Extrude</Button>
-                            <Button disabled variant="outline" class="w-16">Load</Button>
-                            <Button disabled variant="outline" class="w-16">Unload</Button>
+                            <Button
+                                onclick={() => {
+                                    sendWsCommand(new MoveE(-10));
+                                }}
+                                variant="outline"
+                                class="w-16">Retract</Button
+                            >
+                            <Button
+                                onclick={() => {
+                                    sendWsCommand(new MoveE(10));
+                                }}
+                                variant="outline"
+                                class="w-16">Extrude</Button
+                            >
+                            <Button
+                                onclick={() => {
+                                    sendWsCommand(new FilamentLoad());
+                                }}
+                                variant="outline"
+                                class="w-16">Load</Button
+                            >
+                            <Button
+                                onclick={() => {
+                                    sendWsCommand(new FilamentUnload());
+                                }}
+                                variant="outline"
+                                class="w-16">Unload</Button
+                            >
                         </div>
                     </div>
                 </div>
@@ -280,7 +495,17 @@
                             </div>
                             <span>Normal</span>
                         </div>
-                        <Slider disabled value={[1]} max={3} step={1} class="w-full" />
+                        <Slider
+                            disabled
+                            onValueCommit={(value: number[]) => {
+                                sendWsCommand(new PrintSpeed(value[0] as 1 | 2 | 3 | 4));
+                            }}
+                            value={[1]}
+                            min={1}
+                            max={3}
+                            step={1}
+                            class="w-full"
+                        />
                     </div>
                 </div>
             </CardContent>
@@ -313,7 +538,13 @@
                         <div class="text-center text-xl">{Math.round(printerStatus?.chamber_temper ?? 0)}°C</div>
                     </div>
                     <div class="flex items-center justify-center space-x-2">
-                        <Switch id="printer-light" bind:checked={printerLightOn} onCheckedChange={toggleLight} />
+                        <Switch
+                            id="printer-light"
+                            bind:checked={printerLightOn}
+                            onCheckedChange={(enabled: boolean) => {
+                                sendWsCommand(new ChamberLight(enabled));
+                            }}
+                        />
                         <Label for="printer-light">
                             <Lightbulb class="h-5 w-5" />
                         </Label>
@@ -327,9 +558,17 @@
                                 <Fan />
                                 Part Cooling
                             </div>
-                            <span>{printerStatus?.cooling_fan_speed}%</span>
+                            <span>{Math.round((Number(printerStatus?.cooling_fan_speed ?? 0) / 15) * 100)}%</span>
                         </div>
-                        <Slider disabled value={[42]} max={100} step={5} class="disabled w-full" />
+                        <Slider
+                            onValueCommit={(value: number[]) => {
+                                sendWsCommand(new PartFanSpeed(value[0]));
+                            }}
+                            value={[printerStatus?.cooling_fan_speed]}
+                            max={15}
+                            step={1}
+                            class="w-full"
+                        />
                     </div>
                     <div class="bg-400 rounded-lg p-3">
                         <div class="mb-2 flex justify-between">
@@ -337,9 +576,17 @@
                                 <Fan />
                                 Chamber
                             </div>
-                            <span>{printerStatus?.big_fan1_speed}%</span>
+                            <span>{Math.round((Number(printerStatus?.big_fan2_speed ?? 0) / 15) * 100)}%</span>
                         </div>
-                        <Slider disabled value={[42]} max={100} step={5} class="w-full" />
+                        <Slider
+                            onValueCommit={(value: number[]) => {
+                                sendWsCommand(new ChamberFanSpeed(value[0]));
+                            }}
+                            value={[printerStatus?.big_fan2_speed || 0]}
+                            max={15}
+                            step={1}
+                            class="w-full"
+                        />
                     </div>
                     <div class="bg-400 rounded-lg p-3">
                         <div class="mb-2 flex justify-between">
@@ -347,9 +594,17 @@
                                 <Fan />
                                 Auxillary
                             </div>
-                            <span>{printerStatus?.big_fan2_speed}%</span>
+                            <span>{Math.round((Number(printerStatus?.big_fan1_speed ?? 0) / 15) * 100)}%</span>
                         </div>
-                        <Slider disabled value={[42]} max={100} step={5} class="w-full" />
+                        <Slider
+                            onValueCommit={(value: number[]) => {
+                                sendWsCommand(new AuxFanSpeed(value[0]));
+                            }}
+                            value={[printerStatus?.big_fan1_speed || 0]}
+                            max={15}
+                            step={1}
+                            class="w-full"
+                        />
                     </div>
                 </div>
             </CardContent>
