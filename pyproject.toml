@@ -16,6 +16,8 @@ dependencies = [
     "aioftp>=0.24.1,<0.25",
     "ping3>=4.0.8,<5",
     "tinydb>=4.8.2",
+    "aiogram>=3.17.0,<4",
+    "webcolors>=24.11.1",
 ]
 
 [dependency-groups]
@@ -31,5 +33,5 @@ include = ["backend"]
 include = ["backend"]
 
 [[tool.mypy.overrides]]
-module = ["bambu_connect.*", "aioftp.*", "ping3"]
+module = ["bambu_connect.*", "aioftp.*", "ping3", "aiogram.*", "webcolors"]
 ignore_missing_imports = true

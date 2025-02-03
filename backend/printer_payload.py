@@ -95,7 +95,7 @@ def resume_command() -> RAW_COMMAND_TYPE:
 
 def pushall_command() -> RAW_COMMAND_TYPE:
     return {
-        "pushing": {"sequence_id": 0, "command": "pushall"},
+        "pushing": {"sequence_id": "0", "command": "pushall"},
         "user_id": "1234567890",
     }
 

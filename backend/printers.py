@@ -67,6 +67,7 @@ class Printer:
         self.printer_status = None
         self.printer_status_values = {}
         self.printer_subscriber_task = None
+        self._notified_milestones: set[str] = set()
 
     @property
     def request_topic(self) -> str:
@@ -84,6 +85,40 @@ class Printer:
         self.latest_image = image
         await self.callback_all_connected_ws(WsJpegImage.from_bytes(image))
 
+    async def _send_print_notification(self, text: str) -> None:
+        from .bot import bot
+
+        subtask = self.printer_status_values.get("subtask_name", "")
+        caption = f"{self.name}: {text}"
+        if subtask:
+            caption += f" ({subtask})"
+        if self.latest_image is not None:
+            await bot.send_photo(self.latest_image, caption)
+        else:
+            await bot.send(caption)
+
+    async def _check_print_milestones(self) -> None:
+        status = self.printer_status_values
+        gcode_state = status.get("gcode_state", "")
+        layer = status.get("layer_num", 0)
+        percent = status.get("mc_percent", 0)
+        remaining = status.get("mc_remaining_time", 0)
+
+        if gcode_state not in ("RUNNING", "PREPARE"):
+            return
+
+        if layer >= 2 and "first_layer" not in self._notified_milestones:
+            self._notified_milestones.add("first_layer")
+            await self._send_print_notification("First layer done")
+
+        if percent >= 50 and "half" not in self._notified_milestones:
+            self._notified_milestones.add("half")
+            await self._send_print_notification("50% complete")
+
+        if 0 < remaining <= 3 and "almost_done" not in self._notified_milestones:
+            self._notified_milestones.add("almost_done")
+            await self._send_print_notification(f"~{remaining} min remaining")
+
     async def start_printer_subscriber(self) -> None:
         if self.printer_subscriber_task is None or self.printer_subscriber_task.done():
             self.printer_subscriber_task = asyncio.create_task(
@@ -97,25 +132,20 @@ class Printer:
                     task.result()
                 except asyncio.CancelledError:
                     logger.info("Printer subscriber cancelled for %s", self.name)
+                    return
                 except Exception as e:
                     logger.exception(
                         "Printer subscriber failed for %s: %s", self.name, e
                     )
                 self.printer_subscriber_task = None
-                if self.subscribers:
-                    self.printer_subscriber_task = asyncio.create_task(
-                        self.start_printer_subscriber()
-                    )
+                logger.info("Restarting subscriber for %s", self.name)
+                self.printer_subscriber_task = asyncio.create_task(
+                    self.start_printer_subscriber()
+                )
 
             self.printer_subscriber_task.add_done_callback(on_done)
 
-    async def start(
-        self, callback: Callable[[dict[str, Any]], Coroutine[Any, Any, None]]
-    ) -> None:
-        if not self.subscribers:
-            logger.error("Started Printer Connection without subscribers")
-            return
-
+    async def start_camera(self) -> None:
         if self.camera_client is None:
             self.camera_client = AsyncCameraClient(
                 hostname=self.ip, access_code=self.access_code
@@ -123,6 +153,7 @@ class Printer:
         if self.camera_client is not None:
             await self.camera_client.start_stream(self.image_callback)
 
+    def ensure_mqtt_client(self) -> None:
         if self.mqtt_client is None:
             ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS)
             ssl_context.verify_mode = ssl.CERT_NONE
@@ -135,7 +166,17 @@ class Printer:
                 tls_insecure=True,
                 tls_context=ssl_context,
             )
-            await self.start_printer_subscriber()
+
+    async def start(
+        self, callback: Callable[[dict[str, Any]], Coroutine[Any, Any, None]]
+    ) -> None:
+        if not self.subscribers:
+            logger.error("Started Printer Connection without subscribers")
+            return
+
+        await self.start_camera()
+        self.ensure_mqtt_client()
+        await self.start_printer_subscriber()
 
     async def stop(self, force: bool = False) -> None:
         if self.subscribers and not force:
@@ -226,12 +267,16 @@ class Printer:
                 await self.send_ws_error("Printer Offline")
                 continue
             if self.mqtt_client is None:
-                await asyncio.sleep(0.1)
-                continue
+                self.ensure_mqtt_client()
+                if self.mqtt_client is None:
+                    await asyncio.sleep(3)
+                    continue
             try:
+                await self.start_camera()
+                self.full_push = False
                 async with self.mqtt_client as client:
-                    await self.request_full_push()
                     await client.subscribe(f"device/{self.serial}/report")
+                    await self.request_full_push()
                     async for message in client.messages:
                         try:
                             if not isinstance(message.payload, bytes):
@@ -251,7 +296,38 @@ class Printer:
                                 self.printer_status_values = await self.get_cached()
 
                             if print_payload := payload.get("print"):
+                                prev_state = self.printer_status_values.get(
+                                    "gcode_state"
+                                )
                                 self.printer_status_values.update(print_payload)
+                                new_state = print_payload.get("gcode_state")
+
+                                # Reset milestones when a new print starts
+                                if new_state in (
+                                    "RUNNING",
+                                    "PREPARE",
+                                ) and prev_state not in ("RUNNING", "PREPARE"):
+                                    self._notified_milestones.clear()
+
+                                    # clean stats
+                                    self.printer_status_values.pop("mc_percent", None)
+                                    self.printer_status_values.pop("layer_num", None)
+                                    self.printer_status_values.pop(
+                                        "mc_remaining_time", None
+                                    )
+
+                                if (
+                                    new_state == "FINISH"
+                                    and prev_state != "FINISH"
+                                    and prev_state is not None
+                                ):
+                                    self._notified_milestones.clear()
+                                    await self._send_print_notification(
+                                        "Print finished"
+                                    )
+
+                                await self._check_print_milestones()
+
                                 if print_payload.get("msg") == 0:
                                     self.full_push = True
                                 if state_payload := print_payload.get("upgrade_state"):
@@ -383,4 +459,4 @@ def parse_printers_from_env() -> dict[str, Printer]:
     return _printers
 
 
-printers = parse_printers_from_env()
+printers: dict[str, Printer] = parse_printers_from_env()
