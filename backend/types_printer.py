@@ -7,6 +7,7 @@ from .printer_payload import RAW_COMMAND_TYPE
 from pydantic import Field
 from typing import ClassVar
 from base64 import b64decode
+from .bot import bot
 
 if TYPE_CHECKING:
     from .printers import Printer
@@ -237,7 +238,9 @@ class PrintFile(PrinterBaseCommand):
         return pl.start_print_file(self.file_name)
 
     async def post_server_command(self, printer: "Printer") -> None:
-        await printer.send_ws_message(f"Print '{self.file_name}' started")
+        payload = f"Print '{self.file_name}' started"
+        await printer.send_ws_message(payload)
+        await bot.send(payload)
 
 
 class PrinterRequest(BaseModel):

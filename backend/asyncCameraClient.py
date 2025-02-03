@@ -5,11 +5,7 @@ import asyncio
 from bambu_connect.CameraClient import CameraClient
 
 
-import logging
-
 logger = getLogger(__name__)
-
-logger = logging.getLogger(__name__)
 
 
 class AsyncCameraClient(CameraClient):
