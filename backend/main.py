@@ -20,6 +20,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.get("/healthz")
+async def healthz() -> dict[str, str]:
+    return {"status": "healthy"}
+
+
 app.include_router(api_router, prefix="/api")
 app.include_router(ws_router, prefix="/ws")
 
