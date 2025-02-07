@@ -19,6 +19,56 @@ Features:
 - Connect as many Clients as you want
 - ready to use docker image (see `docker-compose.yaml`)
 
+## Installation
+
+### Using docker commandline
+
+Start the service:
+
+```bash
+docker run \
+  -p 8080:8080  \
+  --restart always \
+  -e BAMBUI_PRINTER.MY-P1S.IP=192.168.12.42 \
+  -e BAMBUI_PRINTER.MY-P1S.ACCESS_CODE=12345678 \
+  -e BAMBUI_PRINTER.MY-P1S.SERIAL=01P00C12345678 \
+  -e BAMBUI_PRINTER.MY-P1S.MODEL=P1S \
+  ghcr.io/fidoriel/bambui:edge
+```
+
+### Using docker compose
+
+Write a compose file as bambui.yml:
+
+```yaml
+services:
+    bambui:
+        image: ghcr.io/fidoriel/bambui:edge
+        restart: always
+        ports:
+            - 8080:8080
+        environment:
+            - BAMBUI_PRINTER.MY-P1S.IP=192.168.12.42
+            - BAMBUI_PRINTER.MY-P1S.ACCESS_CODE=12345678
+            - BAMBUI_PRINTER.MY-P1S.SERIAL=01P00C12345678
+            - BAMBUI_PRINTER.MY-P1S.MODEL=P1S
+```
+
+Start the service in the background (-d):
+
+```bash
+docker compose -f bambui.yml up -d
+```
+
+### Using a Portainer stack
+
+  - Login to Portainer
+  - Go to "Stacks"
+  - Click "Add stack"
+  - Enter the name "Bambui"
+  - Paste the content of the bambui.yml file from "Using docker compose" into the "Web editor"
+  - Click "Deploy the stack"
+
 ## Development
 
 Create an `.env` based on `.env.example`
