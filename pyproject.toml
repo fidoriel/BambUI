@@ -12,13 +12,12 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.12"
 bambu-connect = "^0.3.1"
-python-dotenv = "^1.0.1"
 fastapi = "^0.115.6"
 uvicorn = { version = "^0.34.0", extras = ["standard"] }
 bambulabs-api = "^2.5.2"
 aiomqtt = "^2.3.0"
 aioftp = "^0.24.1"
-python-telegram-bot = "^21.10"
+aiogram = "^3.17.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.8.4"

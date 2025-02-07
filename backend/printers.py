@@ -327,4 +327,4 @@ def parse_printers_from_env() -> dict[str, Printer]:
     return _printers
 
 
-printers = parse_printers_from_env()
+printers: dict[str, Printer] = parse_printers_from_env()
