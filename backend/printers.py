@@ -180,6 +180,9 @@ class Printer:
             await self.publish_request(json.dumps(pushall_command()))
             logger.info("Requested full push from %s %s", self.name, self.model)
 
+    async def handle_system_callback(self, payload: dict[str, str]) -> None:
+        pass
+
     async def printer_subscriber(self) -> None:
         while True:
             if self.mqtt_client is None:
@@ -212,15 +215,8 @@ class Printer:
                                 if print_payload.get("msg") == 0:
                                     self.full_push = True
 
-                            elif system_payload := payload.get("print"):
-                                if led_status := system_payload.get("led_mode"):
-                                    if (
-                                        len(self.printer_status_values["lights_report"])
-                                        == 1
-                                    ):
-                                        self.printer_status_values["lights_report"][
-                                            "mode"
-                                        ] = led_status
+                            elif system_payload := payload.get("system"):
+                                await self.handle_system_callback(system_payload)
 
                             client_payload = {
                                 "type": "printer_status",
