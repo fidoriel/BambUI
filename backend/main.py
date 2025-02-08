@@ -5,12 +5,29 @@ import logging
 from fastapi.middleware.cors import CORSMiddleware
 from .printer_ws import router as ws_router
 from fastapi.responses import FileResponse
-
+from typing import AsyncGenerator
+from contextlib import asynccontextmanager
+from .printers import printers
+from .bot import bot
+import asyncio
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    logger.info("Starting up...")
+    for printer in printers.values():
+        await printer.start_printer_subscriber()
+        logger.info("Started subscribing to %s %s", printer.name, printer.ip)
+    task = asyncio.create_task(bot.start_bot_loop())
+    yield
+    logger.info("Shutting down...")
+    task.cancel()
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
