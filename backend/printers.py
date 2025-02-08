@@ -33,7 +33,7 @@ class Printer:
     ip: str
     access_code: str
     serial: str
-    model: Literal["P1S"]
+    model: Literal["P1S", "P1P", "A1", "A1M"]
     username: str = "bblp"
     port: int = 8883
     ftp_port: int = 990

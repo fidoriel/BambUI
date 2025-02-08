@@ -21,6 +21,33 @@ Features:
 
 ## Installation
 
+The following printer models are supported:
+
+- P1 Series P1S and P1P
+- A1 Series A1 and A1M
+
+You will need 4 Env vars to add a printer:
+
+For the printer model following strings are used: `P1S`, `P1P`, `A1` or `A1M`.
+
+Replace `<something>` with the apropiate values for your machine.
+You may add as many printers as you like.
+`<PRINTER_NAME>` is an arbitrary name you give your machine.
+You may use it for identification.
+All env vars associated with one printer may have the same name.
+This name will be visible across the UI.
+You may choose this at any time.
+It has no functionality except identification and is no referral to the printer, so you may choose a name that you like.
+It will only be used within BambUI.
+You can add this env block for as many printers as you like.
+
+```bash
+BAMBUI_PRINTER.<PRINTER_NAME>.IP=<PRINTER_IP>
+BAMBUI_PRINTER.<PRINTER_NAME>.ACCESS_CODE=<PRINTER_ACCESS_CODE>
+BAMBUI_PRINTER.<PRINTER_NAME>.SERIAL=<PRINTER_SERIAL_NUMBER>
+BAMBUI_PRINTER.<PRINTER_NAME>.MODEL=<PRINTER_MODEL>
+```
+
 ### Using docker commandline
 
 Start the service:
