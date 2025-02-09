@@ -6,8 +6,10 @@
     import { Button } from "$lib/components/ui/button";
     import { Axis3D } from "lucide-svelte";
     import { Skeleton } from "$lib/components/ui/skeleton";
+    import type { PrinterResponse } from "../typesApi";
+    import { Network } from "lucide-svelte";
 
-    let printers: string[] = [];
+    let printers: PrinterResponse[] = [];
 
     let url = getBackendUrl();
 
@@ -15,7 +17,8 @@
         try {
             const response = await fetch(url + "/api/printers");
             if (!response.ok) throw new Error("Failed to fetch printers");
-            printers = await response.json();
+            printers = (await response.json()) as PrinterResponse[];
+            console.log(printers);
         } catch (error) {
             console.error("Error fetching printers:", error);
         }
@@ -30,14 +33,16 @@
             {#each printers as printer}
                 <Card>
                     <a
-                        href="/printer?printerId={printer}"
+                        href="/printer?printerId={printer.name}"
                         use:link
                         class="flex items-center gap-4 p-4 transition-colors hover:bg-muted"
                     >
                         <Axis3D class="h-5 w-5 text-muted-foreground" />
                         <div class="flex-1">
-                            <h3 class="font-semibold">{printer}</h3>
+                            <h3 class="font-semibold">{printer.name}</h3>
                         </div>
+                        <h3 class="font-semibold">{printer.model}</h3>
+                        <Network color={printer.is_online ? "green" : "red"} />
                         <Button variant="ghost" size="sm">View Details →</Button>
                     </a>
                 </Card>

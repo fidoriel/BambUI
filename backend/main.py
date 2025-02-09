@@ -6,7 +6,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from .printer_ws import router as ws_router
 from fastapi.responses import FileResponse
 
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 

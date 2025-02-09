@@ -17,8 +17,11 @@ import json
 from .types_printer import PrinterRequest
 from .types_ws import WsError, WsMessage
 from .printer_ftp import PrinterFileSystemEntry, ftps_connection
+from ping3 import ping
 
 logger = getLogger(__name__)
+
+SupportedPrinters = Literal["P1S", "P1P", "A1", "A1M"]
 
 
 class Printer:
@@ -33,7 +36,7 @@ class Printer:
     ip: str
     access_code: str
     serial: str
-    model: Literal["P1S", "P1P", "A1", "A1M"]
+    model: SupportedPrinters
     username: str = "bblp"
     port: int = 8883
     ftp_port: int = 990
@@ -185,6 +188,10 @@ class Printer:
 
     async def printer_subscriber(self) -> None:
         while True:
+            if not await self.ping():
+                await asyncio.sleep(10)
+                await self.send_ws_error("Printer Offline")
+                continue
             if self.mqtt_client is None:
                 await asyncio.sleep(0.1)
                 continue
@@ -304,6 +311,10 @@ class Printer:
         ) as client:
             client.remove(path=file_path)
         return None
+
+    async def ping(self) -> bool:
+        ping_response = await asyncio.to_thread(ping, dest_addr=self.ip, timeout=1)
+        return bool(ping_response)
 
 
 def parse_printers_from_env() -> dict[str, Printer]:

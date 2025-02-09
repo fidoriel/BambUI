@@ -18,6 +18,7 @@ uvicorn = { version = "^0.34.0", extras = ["standard"] }
 bambulabs-api = "^2.5.2"
 aiomqtt = "^2.3.0"
 aioftp = "^0.24.1"
+ping3 = "^4.0.8"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.8.4"
@@ -28,5 +29,5 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [[tool.mypy.overrides]]
-module = ["bambu_connect.*", "aioftp.*"]
+module = ["bambu_connect.*", "aioftp.*", "ping3"]
 ignore_missing_imports = true
