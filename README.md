@@ -89,12 +89,12 @@ docker compose -f bambui.yml up -d
 
 ### Using a Portainer stack
 
-  - Login to Portainer
-  - Go to "Stacks"
-  - Click "Add stack"
-  - Enter the name "Bambui"
-  - Paste the content of the bambui.yml file from "Using docker compose" into the "Web editor"
-  - Click "Deploy the stack"
+- Login to Portainer
+- Go to "Stacks"
+- Click "Add stack"
+- Enter the name "Bambui"
+- Paste the content of the bambui.yml file from "Using docker compose" into the "Web editor"
+- Click "Deploy the stack"
 
 ## Development
 
