@@ -24,6 +24,8 @@
     import { Switch } from "$lib/components/ui/switch/index.js";
     import { ChevronsLeftRightEllipsis } from "lucide-svelte";
     import { Input } from "$lib/components/ui/input/index.js";
+    import { AmsStatus } from "$lib/components/ui/ams/index.js";
+
     import {
         AuxFanSpeed,
         ChamberFanSpeed,
@@ -609,5 +611,21 @@
                 </div>
             </CardContent>
         </Card>
+        {#if printerStatus?.ams?.ams_exist_bits === "1"}
+        <Card class="space-y-6">
+            <CardContent class="p-4">
+            <AmsStatus 
+                slots={printerStatus?.ams?.ams?.[0]?.tray?.map(tray => ({
+                    id: tray.tray_id_name || '',
+                    material: tray.tray_type || '',
+                    k_factor: tray.k?.toFixed(2) || '0.00',
+                    color: tray.tray_color || '#808080',
+                    active: printerStatus?.ams?.tray_now === tray.tray_id_name
+                })) || []}
+                activeSlot={parseInt(printerStatus?.ams?.tray_now || '0', 10)}
+            />
+            </CardContent>
+        </Card>
+        {/if}
     </div>
 </div>
