@@ -616,13 +616,26 @@
             <CardContent class="p-4">
             <AmsStatus 
                 slots={printerStatus?.ams?.ams?.[0]?.tray?.map(tray => ({
-                    id: tray.tray_id_name || '',
+                    id: tray.id || '',
+                    tray_id: tray.tray_id_name || '',
                     material: tray.tray_type || '',
-                    k_factor: tray.k?.toFixed(2) || '0.00',
+                    k_factor: tray.k?.toFixed(3) || '0.00',
                     color: tray.tray_color || '#808080',
-                    active: printerStatus?.ams?.tray_now === tray.tray_id_name
+                    active: printerStatus?.ams?.tray_now === tray.id,
+                    nozzle_temp_max: tray.nozzle_temp_max || "0",
+                    nozzle_temp_min: tray.nozzle_temp_min || "0",
+                    tray_temp: tray.tray_temp || "0",
+                    tray_sub_brands: tray.tray_sub_brands || "None",
+                    tag_uid: tray.tag_uid || "None"
                 })) || []}
-                activeSlot={parseInt(printerStatus?.ams?.tray_now || '0', 10)}
+                extSpool={ {
+                    id: printerStatus.vt_tray?.id || '',
+                    tray_id: printerStatus.vt_tray?.tray_id_name || '',
+                    material: printerStatus.vt_tray?.tray_type || '',
+                    k_factor: printerStatus.vt_tray?.k?.toFixed(3) || '0.00',
+                    color: printerStatus.vt_tray?.tray_color || '#808080',
+                    active: printerStatus?.ams?.tray_now === printerStatus.vt_tray?.id
+                    }}
             />
             </CardContent>
         </Card>

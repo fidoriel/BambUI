@@ -1,100 +1,183 @@
 <script lang="ts">
     import { Button } from "$lib/components/ui/button";
+    import { Eye, X } from "lucide-svelte";
+    import { Popover } from "bits-ui";
 
-    interface AmsSlot {
+    interface Filament {
         id: string;
         material: string;
         k_factor: string;
         color: string;
         active: boolean;
+        nozzle_temp_max: string;
+        nozzle_temp_min: string;
+        tray_temp: string;
+        tray_sub_brands: string;
+        tag_uid: string;
     }
 
-    export let slots: AmsSlot[] = [];
-    export let activeSlot: number = 0;
-    export let extruderConnected: boolean = false;
+    export let slots: Filament[] = [];
+    export let extSpool: Filament;
 
     function formatColor(color: string): string {
-        if (!color) return '#808080';
-        return color.startsWith('#') ? color : `#${color}`;
+        if (!color) return "#808080";
+        return color.startsWith("#") ? color : `#${color}`;
+    }
+
+    function formatSlotName(id: string): string {
+        return "A" + (parseInt(id) + 1).toString();
+    }
+
+    // Computes if a hex color is light or dark and returns the appropriate Tailwind class.
+    function tailwindTextColorClass(hex: string): string {
+        const cleanColor = hex.replace("#", "");
+        if (cleanColor.length < 6) return "text-black";
+
+        const r = parseInt(cleanColor.slice(0, 2), 16);
+        const g = parseInt(cleanColor.slice(2, 4), 16);
+        const b = parseInt(cleanColor.slice(4, 6), 16);
+
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        // If the background is light, use black text; otherwise, white text.
+        return luminance > 0.5 ? "text-black" : "text-white";
     }
 </script>
 
-<div class="rounded-lg bg-400 text-white font-sans">
-    <div class="flex items-start gap-8">
+<div class="bg-400 rounded-lg font-sans text-white">
+    <div class="flex items-start gap-4 overflow-x-auto" >
         <!-- External Spool Section -->
         <div class="flex flex-col items-center">
             <!-- 1. “Ext Spool” label row -->
-            <div class="h-8 flex items-center gap-2 text-sm">
-            <span>Ext Spool</span>
+            <div class="text-md flex h-8 items-center gap-2 font-medium">
+                <span>Ext Spool</span>
             </div>
             <!-- 2. Extra row to match the AMS spool ID row -->
-            <div class="h-8 flex items-center text-sm text-slate-400">
-            <!-- blank or something like "EXT" if you prefer -->
+            <div class="flex h-8 items-center text-sm text-slate-400">
+                <span>EXT</span>
+                <!-- blank or something like "EXT" if you prefer -->
             </div>
             <!-- 3. Spool box itself -->
             <div
-            class="w-20 h-[120px] border-2 border-dashed border-slate-600
-                rounded-lg flex items-center justify-center bg-transparent"
+                class={`relative flex h-[120px] w-20 flex-col items-center justify-between rounded-lg p-3 ${tailwindTextColorClass(formatColor(extSpool.color))}`}
+                style="background-color: {formatColor(extSpool.color)}"
             >
-            <span class="text-slate-400">?</span>
+                {#if extSpool.material}
+                    <div class="text-shadow flex flex-col items-center text-sm">
+                        <span class="font-medium">{extSpool.material}</span>
+                        <span class="text-xs opacity-90">K{extSpool.k_factor}</span>
+                    </div>
+                    <div class="self-end text-sm"><Eye /></div>
+                    
+                {:else}
+                    <div class="text-shadow flex flex-col items-center">
+                        <span class="text-shadow text-md">?</span>
+                    </div>
+                {/if}
             </div>
         </div>
 
         <!-- AMS Section -->
         <div class="flex-grow">
-            <div class="h-8 flex items-center gap-2 text-sm">
+            <div class="text-md flex h-8 items-center gap-2 font-medium">
                 <span>AMS</span>
             </div>
-            
-            <div class="flex gap-4 relative">
+
+            <div class="relative flex gap-2 p-2">
                 {#each slots as slot, index}
-                <div class="flex flex-col items-center">
-                    <div class="h-8 flex items-center text-sm text-slate-400">{slot.id}</div>
-                    <div 
-                        class="w-20 h-[120px] rounded-lg p-3 flex flex-col justify-between relative"
-                        style="background-color: {formatColor(slot.color)}"
-                    >
-                        <div class="flex flex-col items-center text-white text-shadow text-sm">
-                            <span class="font-medium">{slot.material}</span>
-                            <span class="text-xs opacity-90">K{slot.k_factor}</span>
+                    <div class="flex flex-col w-20 items-center">
+                        <div class="text-md flex h-8 items-center text-slate-400">{formatSlotName(slot.id)}</div>
+                        <div
+                            class={`relative flex h-[120px] w-20 flex-col items-center justify-between rounded-lg p-3 ${tailwindTextColorClass(formatColor(slot.color))}`}
+                            style="background-color: {formatColor(slot.color)}"
+                        >
+                            {#if slot.material}
+                                <div class="text-shadow flex flex-col items-center text-sm">
+                                    <span class="font-medium">{slot.material}</span>
+                                    <span class="text-xs opacity-90">K{slot.k_factor}</span>
+                                </div>
+                                <Popover.Root>
+                                    <Popover.Trigger>
+                                        <Eye />
+                                    </Popover.Trigger>
+                                    <Popover.Portal>
+                                        <Popover.Content
+                                            class="relative border-dark-10 z-30 w-full max-w-[328px] rounded-[12px] border bg-background p-4 shadow-popover data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
+                                        >
+                                        <Popover.Close class="absolute top-2 right-2">
+                                            <X />
+                                        </Popover.Close>
+                                            <!-- Filament Info -->
+                                            <div class="space-y-2 text-sm">
+                                                <div>
+                                                    <span class="font-semibold">Filament:</span>
+                                                    <span>{slot.material}</span>
+                                                </div>
+                                                <div>
+                                                    <span class="font-semibold">Type:</span>
+                                                    <span>{slot.tray_sub_brands}</span>
+                                                </div>
+                                                <div>
+                                                    <span class="font-semibold">Color:</span>
+                                                    <span
+                                                        class="ml-1 inline-block h-3 w-3 rounded-full border border-gray-400 align-middle"
+                                                        style="background-color: {formatColor(slot.color)}"
+                                                    ></span>
+                                                </div>
+                                                <div>
+                                                    <span class="font-semibold">Nozzle Temperature:</span>
+                                                    <div class="ml-2">
+                                                        <span>max: {slot.nozzle_temp_max}°C</span>
+                                                        <span class="ml-4">min: {slot.nozzle_temp_min}°C</span>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <span class="font-semibold">Serial Number:</span>
+                                                    <span>{slot.tag_uid}</span>
+                                                </div>
+
+                                                <div class="mt-3 font-semibold">Flow Dynamics</div>
+                                                <div class="ml-2">
+                                                    <div>
+                                                        <span class="font-semibold">Factor K:</span>
+                                                        <span>{slot.k_factor}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <Popover.Arrow class={`${tailwindTextColorClass(formatColor(slot.color))}`} />
+                                        </Popover.Content>
+                                    </Popover.Portal>
+                                </Popover.Root>
+                            {:else}
+                                <span class="text-slate-400">?</span>
+                            {/if}
                         </div>
-                        <div class="self-end text-sm">👁️</div>
-                    </div>
-                    {#if slot.active}
-                        <div class="absolute -bottom-10 w-full flex flex-col items-center">
-                            <div class="w-0.5 h-5 bg-slate-600"></div>
-                            <div class="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center -mt-px">
-                                <div 
-                                    class="w-2.5 h-2.5 rounded-full"
-                                    style="background-color: {formatColor(slot.color)}"
-                                ></div>
+                        {#if slot.active}
+                            <div class="absolute -bottom-10 flex w-full flex-col items-center">
+                                <div class="h-5 w-0.5 bg-slate-600"></div>
+                                <div class="-mt-px flex h-5 w-5 items-center justify-center rounded-full bg-slate-700">
+                                    <div
+                                        class="h-2.5 w-2.5 rounded-full"
+                                        style="background-color: {formatColor(slot.color)}"
+                                    ></div>
+                                </div>
                             </div>
-                        </div>
-                    {/if}
-                </div>
-            {/each}
+                        {/if}
+                    </div>
+                {/each}
+            </div>
         </div>
+    </div>
+
+    <div class="mt-8 flex gap-3">
+        <Button variant="outline" class="w-16" disabled>Unload</Button>
+        <Button variant="outline" class="w-16" disabled>Load</Button>
+        <Button variant="outline" class="w-16" disabled>Guide</Button>
+        <Button variant="outline" class="w-16" disabled>Retry</Button>
     </div>
 </div>
 
-<div class="flex gap-3 mt-8">
-    <Button variant="outline" class="w-16" disabled>
-        Unload
-    </Button>
-    <Button variant="outline" class="w-16" disabled>
-        Load
-    </Button>
-    <Button variant="outline" class="w-16" disabled>
-        Guide
-    </Button>
-    <Button variant="outline" class="w-16" disabled>
-        Retry
-    </Button>
-</div>
-</div>
-
 <style>
-.text-shadow {
-    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-}
+    .text-shadow {
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
 </style>
