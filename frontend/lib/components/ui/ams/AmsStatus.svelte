@@ -44,36 +44,42 @@
 </script>
 
 <div class="bg-400 rounded-lg font-sans text-white">
-    <div class="flex items-start gap-4 overflow-x-auto" >
+    <!-- Container holding both the Ext Spool section and AMS section side by side -->
+    <div class="flex gap-4 overflow-x-auto">
         <!-- External Spool Section -->
-        <div class="flex flex-col items-center">
-            <!-- 1. “Ext Spool” label row -->
-            <div class="text-md flex h-8 items-center gap-2 font-medium">
-                <span>Ext Spool</span>
-            </div>
-            <!-- 2. Extra row to match the AMS spool ID row -->
-            <div class="flex h-8 items-center text-sm text-slate-400">
-                <span>EXT</span>
-                <!-- blank or something like "EXT" if you prefer -->
-            </div>
-            <!-- 3. Spool box itself -->
-            <div
+        <div class="flex flex-col flex-none">
+          <!-- Row for the “Ext Spool” heading -->
+          <div class="text-md flex h-8 items-center gap-2 font-medium">
+            <span>Ext Spool</span>
+          </div>
+    
+          <!-- Row holding the spool ID & spool box (similar structure to AMS) -->
+          <div class="relative flex gap-2 p-2">
+            <div class="flex w-20 flex-col items-center">
+              <!-- spool ID row -->
+              <div class="text-md flex h-8 items-center text-slate-400">
+              </div>
+              <!-- spool box -->
+              <div
                 class={`relative flex h-[120px] w-20 flex-col items-center justify-between rounded-lg p-3 ${tailwindTextColorClass(formatColor(extSpool.color))}`}
                 style="background-color: {formatColor(extSpool.color)}"
-            >
+              >
                 {#if extSpool.material}
-                    <div class="text-shadow flex flex-col items-center text-sm">
-                        <span class="font-medium">{extSpool.material}</span>
-                        <span class="text-xs opacity-90">K{extSpool.k_factor}</span>
-                    </div>
-                    <div class="self-end text-sm"><Eye /></div>
-                    
+                  <div class="text-shadow flex flex-col items-center text-sm">
+                    <span class="font-medium">{extSpool.material}</span>
+                    <span class="text-xs opacity-90">K{extSpool.k_factor}</span>
+                  </div>
+                  <div class="self-end text-sm">
+                    <Eye />
+                  </div>
                 {:else}
-                    <div class="text-shadow flex flex-col items-center">
-                        <span class="text-shadow text-md">?</span>
-                    </div>
+                  <div class="text-shadow flex flex-col items-center">
+                    <span class="text-shadow text-md">?</span>
+                  </div>
                 {/if}
+              </div>
             </div>
+          </div>
         </div>
 
         <!-- AMS Section -->
