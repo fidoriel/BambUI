@@ -1,6 +1,5 @@
 <script lang="ts">
-    import { Button } from "$lib/components/ui/button";
-    import { Eye, X } from "lucide-svelte";
+    import { Eye } from "lucide-svelte";
     import { cn } from "$lib/utils.js";
     import * as Popover from "$lib/components/ui/popover/index.js";
 
@@ -86,7 +85,7 @@
                 style="background-color: {formatColor(extSpool.color)}"
               >
                 {#if extSpool.material}
-                  <div class="text-shadow flex flex-col items-center text-sm">
+                  <div class="flex flex-col items-center text-sm">
                     <span class="font-medium">{extSpool.material}</span>
                     <span class="text-xs opacity-90">K{extSpool.k_factor}</span>
                   </div>
@@ -95,7 +94,7 @@
                   </div>
                 {:else}
                   <div class="flex flex-col items-center">
-                    <span class="text-shadow text-md">?</span>
+                    <span class="text-lg">?</span>
                   </div>
                 {/if}
               </div>
@@ -124,7 +123,7 @@
                             style="background-color: {formatColor(slot.color)}"
                         >
                             {#if slot.material}
-                                <div class="text-shadow flex flex-col items-center text-sm">
+                                <div class="flex flex-col items-center text-sm">
                                     <span class="font-medium">{slot.material}</span>
                                     <span class="text-xs opacity-90">K{slot.k_factor}</span>
                                 </div>
@@ -176,7 +175,7 @@
                                 </Popover.Root>
                             {:else}
                                 <div class="flex flex-col items-center">
-                                    <span class="text-slate-400">?</span>
+                                    <span class="text-lg text-slate-400">?</span>
                                 </div>
                             {/if}
                         </div>
@@ -193,9 +192,3 @@
     </div>
 
 </div>
-
-<style>
-    .text-shadow {
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    }
-</style>
