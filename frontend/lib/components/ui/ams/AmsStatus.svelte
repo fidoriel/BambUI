@@ -192,12 +192,6 @@
         </div>
     </div>
 
-    <div class="mt-8 flex gap-3">
-        <Button variant="outline" class="w-16" disabled>Unload</Button>
-        <Button variant="outline" class="w-16" disabled>Load</Button>
-        <Button variant="outline" class="w-16" disabled>Guide</Button>
-        <Button variant="outline" class="w-16" disabled>Retry</Button>
-    </div>
 </div>
 
 <style>
