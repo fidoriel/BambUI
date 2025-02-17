@@ -1,6 +1,7 @@
 <script lang="ts">
     import { Button } from "$lib/components/ui/button";
     import { Eye, X } from "lucide-svelte";
+    import { cn } from "$lib/utils.js";
     import * as Popover from "$lib/components/ui/popover/index.js";
 
     interface Filament {
@@ -28,6 +29,26 @@
         return "A" + (parseInt(id) + 1).toString();
     }
 
+    // Determine if the filament color is translucent or if material is missing
+    function isFilamentTranslucent(filament: Filament): boolean {
+        if (filament.tray_sub_brands) {
+            return filament.tray_sub_brands.includes("Translucent");
+        } else if (!filament.material) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    // Insert checkerboard classes if filament is translucent
+    function tailwindFilamentBoxClass(filament: Filament): string {
+        if (isFilamentTranslucent(filament)) {
+            return "pattern-rectangles pattern-gray-500 pattern-size-6 pattern-opacity-100"
+        } else {
+            return ""
+        }
+    }
+
     // Computes if a hex color is light or dark and returns the appropriate Tailwind class.
     function tailwindTextColorClass(hex: string): string {
         const cleanColor = hex.replace("#", "");
@@ -43,7 +64,7 @@
     }
 </script>
 
-<div class="bg-400 rounded-lg font-sans text-white">
+<div class="bg-400 rounded-lg font-sans">
     <!-- Container holding both the Ext Spool section and AMS section side by side -->
     <div class="flex gap-4 overflow-x-auto">
         <!-- External Spool Section -->
@@ -61,7 +82,7 @@
               </div>
               <!-- spool box -->
               <div
-                class={`relative flex h-[120px] w-20 flex-col items-center justify-between rounded-lg p-3 ${tailwindTextColorClass(formatColor(extSpool.color))}`}
+                class={cn('relative flex h-[120px] w-20 flex-col items-center justify-between rounded-lg p-3', tailwindTextColorClass(formatColor(extSpool.color)), tailwindFilamentBoxClass(extSpool))}
                 style="background-color: {formatColor(extSpool.color)}"
               >
                 {#if extSpool.material}
@@ -99,7 +120,7 @@
                     <div class="flex flex-col w-20 items-center">
                         <div class="text-md flex h-8 items-center text-slate-400">{formatSlotName(slot.id)}</div>
                         <div
-                            class={`relative flex h-[120px] w-20 flex-col items-center justify-between rounded-lg p-3 ${tailwindTextColorClass(formatColor(slot.color))}`}
+                            class={cn('relative flex h-[120px] w-20 flex-col items-center justify-between rounded-lg p-3', tailwindTextColorClass(formatColor(slot.color)), tailwindFilamentBoxClass(slot))}
                             style="background-color: {formatColor(slot.color)}"
                         >
                             {#if slot.material}
