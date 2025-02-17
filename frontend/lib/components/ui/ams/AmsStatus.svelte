@@ -1,7 +1,7 @@
 <script lang="ts">
     import { Button } from "$lib/components/ui/button";
     import { Eye, X } from "lucide-svelte";
-    import { Popover } from "bits-ui";
+    import * as Popover from "$lib/components/ui/popover/index.js";
 
     interface Filament {
         id: string;
@@ -111,13 +111,9 @@
                                     <Popover.Trigger>
                                         <Eye />
                                     </Popover.Trigger>
-                                    <Popover.Portal>
-                                        <Popover.Content
-                                            class="relative border-dark-10 z-30 w-full max-w-[328px] rounded-[12px] border bg-background p-4 shadow-popover data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
-                                        >
-                                        <Popover.Close class="absolute top-2 right-2">
-                                            <X />
-                                        </Popover.Close>
+                                    <Popover.Content
+                                        class="z-30 w-full max-w-[328px] rounded-[12px] border border-dark-10 bg-background p-4 shadow-popover data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
+                                        sideOffset={8} >
                                             <!-- Filament Info -->
                                             <div class="space-y-2 text-sm">
                                                 <div>
@@ -155,9 +151,7 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                        <Popover.Arrow class={`${tailwindTextColorClass(formatColor(slot.color))}`} />
                                         </Popover.Content>
-                                    </Popover.Portal>
                                 </Popover.Root>
                             {:else}
                                 <div class="flex flex-col items-center">
