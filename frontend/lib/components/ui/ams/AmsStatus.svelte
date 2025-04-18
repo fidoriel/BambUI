@@ -1,7 +1,8 @@
 <script lang="ts">
-    import { Eye } from "lucide-svelte";
+    import { Eye, Droplet } from "lucide-svelte";
     import { cn } from "$lib/utils.js";
     import * as Popover from "$lib/components/ui/popover/index.js";
+    import { Badge } from "$lib/components/ui/badge/index.js";
 
     interface Filament {
         id: string;
@@ -18,6 +19,7 @@
 
     export let slots: Filament[] = [];
     export let extSpool: Filament;
+    export let humidity: number;
 
     function formatColor(color: string): string {
         if (!color) return "#808080";
@@ -32,20 +34,16 @@
     function isFilamentTranslucent(filament: Filament): boolean {
         if (filament.tray_sub_brands) {
             return filament.tray_sub_brands.includes("Translucent");
-        } else if (!filament.material) {
-            return true;
-        } else {
-            return false;
         }
+        return false;
     }
 
     // Insert checkerboard classes if filament is translucent
     function tailwindFilamentBoxClass(filament: Filament): string {
         if (isFilamentTranslucent(filament)) {
             return "pattern-rectangles pattern-gray-500 pattern-size-6 pattern-opacity-100"
-        } else {
-            return ""
         }
+        return ""
     }
 
     // Computes if a hex color is light or dark and returns the appropriate Tailwind class.
@@ -187,6 +185,26 @@
                         {/if}
                     </div>
                 {/each}
+                <div class="flex flex-col w-20 items-center">
+                    <div class="text-md flex h-8 items-center text-slate-400">
+                        <Badge variant="outline" class="text-xs">{6 - humidity}</Badge>
+                    </div>
+                    <div class="relative flex h-[120px] w-20 flex-col items-center justify-center rounded-lg overflow-hidden">
+                        <!-- Background container (gray when empty) -->
+                        <div class="absolute inset-0 bg-gray-200"></div>
+                        
+                        <!-- Fill level based on humidity (blue when full) -->
+                        {#if humidity > 0}
+                            <div
+                                class="absolute bottom-0 left-0 right-0 bg-blue-500 transition-all duration-300"
+                                style="height: {((6 - humidity) / 5) * 100}%;"
+                            ></div>
+                        {/if}
+                        
+                        <!-- Droplet icon -->
+                        <Droplet class="w-8 h-8 text-slate-400 z-10" />
+                    </div>
+                </div>
             </div>
         </div>
     </div>

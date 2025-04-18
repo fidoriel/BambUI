@@ -636,6 +636,7 @@
                     color: printerStatus.vt_tray?.tray_color || '#808080',
                     active: printerStatus?.ams?.tray_now === printerStatus.vt_tray?.id
                     }}
+                humidity={printerStatus?.ams?.ams?.[0]?.humidity}
             />
             </CardContent>
         </Card>
