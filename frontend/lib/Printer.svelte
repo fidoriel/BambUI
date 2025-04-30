@@ -45,6 +45,7 @@
         PrintSpeed,
         ResumePrint,
         StopPrint,
+        Calibration,
     } from "../typesPrinter";
 
     const speedModes = ["Silent", "Standard", "Sport", "Ludicrous"];
@@ -484,6 +485,24 @@
                                 }}
                                 variant="outline"
                                 class="w-16">Unload</Button
+                            >
+                        </div>
+
+                        <!-- Calibration -->
+                        <div class="flex flex-col gap-2">
+                            <Button
+                                onclick={() => {
+                                    sendWsCommand(new Calibration(true, false, false));
+                                }}
+                                variant="outline"
+                                class="w-32">Level Bed</Button
+                            >
+                            <Button
+                                onclick={() => {
+                                    sendWsCommand(new Calibration(true, true, true));
+                                }}
+                                variant="outline"
+                                class="w-32">Full Calibration</Button
                             >
                         </div>
                     </div>

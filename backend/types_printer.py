@@ -261,7 +261,6 @@ class PrinterRequest(BaseModel):
         | ForceRefresh
         | FilamentLoad
         | FilamentUnload
-        | Calibration
         | PrintFile
         | ChamberLight
         | MoveY
