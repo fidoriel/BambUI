@@ -13,12 +13,12 @@ RUN npm run build
 
 FROM python:3.12-slim AS python-builder
 
-RUN pip install poetry
+RUN pip install uv
 
 WORKDIR /code
-COPY poetry.toml pyproject.toml poetry.lock /code/
+COPY pyproject.toml uv.lock /code/
 
-RUN poetry install --no-root
+RUN uv sync
 
 
 FROM python:3.12-slim

@@ -102,7 +102,7 @@ Create an `.env` based on `.env.example`
 Set Up:
 
 ```bash
-poetry install
+uv sync
 uvicorn backend.main:app --port 8000 --env-file .env --reload
 npm i
 npm run dev

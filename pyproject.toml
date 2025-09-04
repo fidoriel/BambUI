@@ -1,32 +1,33 @@
-[tool.poetry]
+[project]
 name = "bambui"
 version = "0.1.0"
 description = ""
-authors = ["fidoriel <49869342+fidoriel@users.noreply.github.com>"]
-license = "AGPL"
+authors = [{ name = "fidoriel", email = "49869342+fidoriel@users.noreply.github.com" }]
+requires-python = "~=3.12"
 readme = "README.md"
-packages = [
-    { include = "backend" },
+license = "AGPL"
+dependencies = [
+    "bambu-connect>=0.3.1,<0.4",
+    "python-dotenv>=1.0.1,<2",
+    "fastapi>=0.115.6,<0.116",
+    "uvicorn[standard]>=0.34.0,<0.35",
+    "bambulabs-api>=2.5.2,<3",
+    "aiomqtt>=2.3.0,<3",
+    "aioftp>=0.24.1,<0.25",
+    "ping3>=4.0.8,<5",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-bambu-connect = "^0.3.1"
-python-dotenv = "^1.0.1"
-fastapi = "^0.115.6"
-uvicorn = { version = "^0.34.0", extras = ["standard"] }
-bambulabs-api = "^2.5.2"
-aiomqtt = "^2.3.0"
-aioftp = "^0.24.1"
-ping3 = "^4.0.8"
+[dependency-groups]
+dev = [
+    "ruff>=0.8.4,<0.9",
+    "mypy>=1.14.0,<2",
+]
 
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.8.4"
-mypy = "^1.14.0"
+[tool.hatch.build.targets.sdist]
+include = ["backend"]
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.hatch.build.targets.wheel]
+include = ["backend"]
 
 [[tool.mypy.overrides]]
 module = ["bambu_connect.*", "aioftp.*", "ping3"]
