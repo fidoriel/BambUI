@@ -23,7 +23,6 @@
     import { Label } from "$lib/components/ui/label/index.js";
     import { Switch } from "$lib/components/ui/switch/index.js";
     import { ChevronsLeftRightEllipsis } from "lucide-svelte";
-    import { Input } from "$lib/components/ui/input/index.js";
     import { AmsStatus } from "$lib/components/ui/ams/index.js";
 
     import {
@@ -47,6 +46,7 @@
         StopPrint,
         Calibration,
     } from "../typesPrinter";
+    import type { PrinterResponse } from "../typesApi";
 
     const speedModes = ["Silent", "Standard", "Sport", "Ludicrous"];
 
@@ -71,10 +71,24 @@
     let reconnectTimer: number;
     let isConnecting = false;
 
+    const backendUrl = getBackendUrl();
+
+    let printer = $state<PrinterResponse | null>(null);
+
+    onMount(async () => {
+        try {
+            const response = await fetch(`${backendUrl}/api/printer/${printerId}`);
+            if (!response.ok) throw new Error("Failed to fetch printers");
+            printer = (await response.json()) as PrinterResponse;
+            console.log(printer);
+        } catch (error) {
+            console.error("Error fetching printers:", error);
+        }
+    });
+
     function connect() {
         if (isConnecting) return;
         isConnecting = true;
-        const backendUrl = getBackendUrl();
         ws = new WebSocket(`${backendUrl}/ws/printer/${printerId}`);
 
         ws.onmessage = (event) => {
@@ -552,12 +566,14 @@
                             {Math.round(printerStatus?.bed_temper ?? 0)}/{printerStatus?.bed_target_temper}°C
                         </div>
                     </div>
-                    <div class="flex flex-col items-center justify-center space-y-1">
-                        <div class="text-400 flex items-center justify-center space-x-2 text-sm">
-                            <Thermometer /> Chamber
+                    {#if printer?.supports_chamber_temp}
+                        <div class="flex flex-col items-center justify-center space-y-1">
+                            <div class="text-400 flex items-center justify-center space-x-2 text-sm">
+                                <Thermometer /> Chamber
+                            </div>
+                            <div class="text-center text-xl">{Math.round(printerStatus?.chamber_temper ?? 0)}°C</div>
                         </div>
-                        <div class="text-center text-xl">{Math.round(printerStatus?.chamber_temper ?? 0)}°C</div>
-                    </div>
+                    {/if}
                     <div class="flex items-center justify-center space-x-2">
                         <Switch
                             id="printer-light"

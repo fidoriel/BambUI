@@ -5,7 +5,7 @@ from .asyncCameraClient import AsyncCameraClient
 from bambu_connect.utils.models import PrinterStatus
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Callable, Coroutine
-from typing import Literal, Any
+from typing import Any
 from pydantic import BaseModel
 from uuid import uuid4
 from .types_ws import WsJpegImage
@@ -18,10 +18,9 @@ from .types_printer import PrinterRequest
 from .types_ws import WsError, WsMessage
 from .printer_ftp import PrinterFileSystemEntry, ftps_connection
 from ping3 import ping
+from .types_general import SupportedPrinters, BBL_X1, BBL_X1C, BBL_X1E, BBL_H2D, BBL_H2S
 
 logger = getLogger(__name__)
-
-SupportedPrinters = Literal["P1S", "P1P", "A1", "A1M"]
 
 
 class Printer:
@@ -45,7 +44,12 @@ class Printer:
     latest_image: bytes | None = None
 
     def __init__(
-        self, name: str, ip: str, access_code: str, serial: str, model: Literal["P1S"]
+        self,
+        name: str,
+        ip: str,
+        access_code: str,
+        serial: str,
+        model: SupportedPrinters,
     ):
         self.name = name
         self.ip = ip
@@ -67,6 +71,10 @@ class Printer:
     @property
     def is_idle_print(self) -> str:
         return self.printer_status_values.get("print_type", "").lower() == "idle"
+
+    @property
+    def supports_chamber_temp(self) -> bool:
+        return self.model in [BBL_X1, BBL_X1C, BBL_X1E, BBL_H2D, BBL_H2S]
 
     async def image_callback(self, image: bytes) -> None:
         self.latest_image = image
