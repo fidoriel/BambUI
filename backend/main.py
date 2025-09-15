@@ -5,6 +5,7 @@ import logging
 from fastapi.middleware.cors import CORSMiddleware
 from .printer_ws import router as ws_router
 from fastapi.responses import FileResponse
+from .types_general import HealthzResponse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -20,9 +21,9 @@ app.add_middleware(
 )
 
 
-@app.get("/healthz")
-async def healthz() -> dict[str, str]:
-    return {"status": "healthy"}
+@app.get("/healthz", response_model=HealthzResponse)
+async def healthz() -> HealthzResponse:
+    return HealthzResponse(status="healthy")
 
 
 app.include_router(api_router, prefix="/api")
