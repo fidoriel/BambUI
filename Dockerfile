@@ -14,6 +14,7 @@ RUN npm run build
 FROM python:3.12-slim AS python-builder
 
 RUN pip install uv
+RUN apt update -y && apt-get install -y build-essential gcc libjpeg-dev zlib1g-dev libtiff-dev libfreetype6-dev liblcms2-dev libwebp-dev libopenjp2-7-dev libraqm-dev libxcb1-dev libavif-dev
 
 WORKDIR /code
 COPY pyproject.toml uv.lock /code/
