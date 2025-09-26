@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy } from "svelte";
+    import { onMount, onDestroy, tick } from "svelte";
     import { useRoute } from "@dvcol/svelte-simple-router/router";
     import { getBackendUrl } from "$lib/utils.js";
     import * as Tooltip from "$lib/components/ui/tooltip";
@@ -74,6 +74,82 @@
     const backendUrl = getBackendUrl();
 
     let printer = $state<PrinterResponse | null>(null);
+
+    function toPercent(value: number): number {
+        // value  [0, 15] → 0‑100 %
+        return Math.round(value / 1.5) * 10;
+    }
+
+    function scaleSliderToBackend(value: number, coefficient: number): number {
+        // UI → 0‑15, Backend → 0‑255 (coefficient × value)
+        const scaled = Math.round(value * coefficient);
+        return Math.min(scaled, 255);
+    }
+
+    function createSmartControl<T>(getBackendValue: () => T, onCommit: (value: T) => void) {
+        let localValue = $state(getBackendValue());
+        let isInteracting = $state(false);
+        let timeout: number;
+        let skipNextChange = false;
+
+        $effect(() => {
+            if (!isInteracting) {
+                skipNextChange = true;
+                localValue = getBackendValue();
+                tick().then(() => {
+                    skipNextChange = false;
+                });
+            }
+        });
+
+        onDestroy(() => {
+            clearTimeout(timeout);
+        });
+
+        return {
+            get value() {
+                return localValue;
+            },
+
+            onChange(value: T) {
+                if (skipNextChange) {
+                    // Reset just in case several rapid backend updates happen
+                    skipNextChange = false;
+                    return;
+                }
+                localValue = value;
+                isInteracting = true;
+                clearTimeout(timeout);
+            },
+
+            onCommit(value: T) {
+                localValue = value;
+                onCommit(value);
+                timeout = setTimeout(() => {
+                    isInteracting = false;
+                }, 7000);
+            },
+        };
+    }
+
+    const controls = {
+        chamberLight: createSmartControl(
+            () => printerStatus?.lights_report?.[0]?.mode === "on",
+            (v) => sendWsCommand(new ChamberLight(v)),
+        ),
+        partFan: createSmartControl(
+            () => Number(printerStatus?.cooling_fan_speed || 0),
+            (v) => sendWsCommand(new PartFanSpeed(scaleSliderToBackend(v, 15))),
+        ),
+        chamberFan: createSmartControl(
+            () => Number(printerStatus?.big_fan2_speed || 0),
+            (v) => sendWsCommand(new ChamberFanSpeed(scaleSliderToBackend(v, 17))),
+        ),
+        auxFan: createSmartControl(
+            () => Number(printerStatus?.big_fan1_speed || 0),
+            (v) => sendWsCommand(new AuxFanSpeed(scaleSliderToBackend(v, 17))),
+        ),
+    };
 
     onMount(async () => {
         try {
@@ -524,7 +600,7 @@
                 <div class="mt-6 grid grid-cols-1 gap-4">
                     <div class="bg-400 rounded-lg p-3">
                         <div class="mb-2 flex justify-between">
-                            <div class="flex items-center space-x-4">
+                            <div class="flex flex-row gap-1">
                                 <CircleGauge />
                                 Speed
                             </div>
@@ -549,8 +625,8 @@
         <!-- Chamber Controls (Lower Right) -->
         <Card class="space-y-6">
             <CardContent class="p-4">
-                <div class="grid grid-cols-4 gap-4">
-                    <div class="flex flex-col items-center justify-center space-y-1">
+                <div class="flex flex-row gap-4">
+                    <div class="flex w-full flex-col items-center justify-center space-y-1">
                         <div class="text-400 flex items-center justify-center space-x-2 text-sm">
                             <Thermometer /> Nozzle
                         </div>
@@ -558,7 +634,7 @@
                             {Math.round(printerStatus?.nozzle_temper ?? 0)}/{printerStatus?.nozzle_target_temper}°C
                         </div>
                     </div>
-                    <div class="flex flex-col items-center justify-center space-y-1">
+                    <div class="flex w-full flex-col items-center justify-center space-y-1">
                         <div class="text-400 flex items-center justify-center space-x-2 text-sm">
                             <Thermometer /> Bed
                         </div>
@@ -567,19 +643,20 @@
                         </div>
                     </div>
                     {#if printer?.supports_chamber_temp}
-                        <div class="flex flex-col items-center justify-center space-y-1">
+                        <div class="flex w-full flex-col items-center justify-center space-y-1">
                             <div class="text-400 flex items-center justify-center space-x-2 text-sm">
                                 <Thermometer /> Chamber
                             </div>
                             <div class="text-center text-xl">{Math.round(printerStatus?.chamber_temper ?? 0)}°C</div>
                         </div>
                     {/if}
-                    <div class="flex items-center justify-center space-x-2">
+                    <div class="flex w-full items-center justify-center space-x-2">
                         <Switch
                             id="printer-light"
-                            bind:checked={printerLightOn}
+                            checked={controls.chamberLight.value}
                             onCheckedChange={(enabled: boolean) => {
-                                sendWsCommand(new ChamberLight(enabled));
+                                controls.chamberLight.onChange(enabled);
+                                controls.chamberLight.onCommit(enabled);
                             }}
                         />
                         <Label for="printer-light">
@@ -591,55 +668,52 @@
                 <div class="mt-6 grid grid-cols-1 gap-4">
                     <div class="bg-400 rounded-lg p-3">
                         <div class="mb-2 flex justify-between">
-                            <div class="flex items-center space-x-4">
+                            <div class="flex flex-row gap-1">
                                 <Fan />
                                 Part Cooling
                             </div>
-                            <span>{Math.round((Number(printerStatus?.cooling_fan_speed ?? 0) / 15) * 100)}%</span>
+                            <span>{toPercent(controls.partFan.value)}%</span>
                         </div>
                         <Slider
-                            onValueCommit={(value: number[]) => {
-                                sendWsCommand(new PartFanSpeed(value[0]));
-                            }}
-                            value={[printerStatus?.cooling_fan_speed]}
+                            onValueChange={(value: number[]) => controls.partFan.onChange(Math.round(value[0]))}
+                            onValueCommit={(value: number[]) => controls.partFan.onCommit(Math.round(value[0]))}
+                            value={[controls.partFan.value]}
                             max={15}
-                            step={1}
+                            step={1.5}
                             class="w-full"
                         />
                     </div>
                     <div class="bg-400 rounded-lg p-3">
                         <div class="mb-2 flex justify-between">
-                            <div class="flex items-center space-x-4">
+                            <div class="flex flex-row gap-1">
                                 <Fan />
                                 Chamber
                             </div>
-                            <span>{Math.round((Number(printerStatus?.big_fan2_speed ?? 0) / 15) * 100)}%</span>
+                            <span>{toPercent(controls.chamberFan.value)}%</span>
                         </div>
                         <Slider
-                            onValueCommit={(value: number[]) => {
-                                sendWsCommand(new ChamberFanSpeed(value[0]));
-                            }}
-                            value={[printerStatus?.big_fan2_speed || 0]}
+                            onValueChange={(value: number[]) => controls.chamberFan.onChange(Math.round(value[0]))}
+                            onValueCommit={(value: number[]) => controls.chamberFan.onCommit(Math.round(value[0]))}
+                            value={[controls.chamberFan.value]}
                             max={15}
-                            step={1}
+                            step={1.5}
                             class="w-full"
                         />
                     </div>
                     <div class="bg-400 rounded-lg p-3">
                         <div class="mb-2 flex justify-between">
-                            <div class="flex items-center space-x-4">
+                            <div class="flex flex-row gap-1">
                                 <Fan />
                                 Auxillary
                             </div>
-                            <span>{Math.round((Number(printerStatus?.big_fan1_speed ?? 0) / 15) * 100)}%</span>
+                            <span>{toPercent(controls.auxFan.value)}%</span>
                         </div>
                         <Slider
-                            onValueCommit={(value: number[]) => {
-                                sendWsCommand(new AuxFanSpeed(value[0]));
-                            }}
-                            value={[printerStatus?.big_fan1_speed || 0]}
+                            onValueChange={(value: number[]) => controls.auxFan.onChange(Math.round(value[0]))}
+                            onValueCommit={(value: number[]) => controls.auxFan.onCommit(Math.round(value[0]))}
+                            value={[controls.auxFan.value]}
                             max={15}
-                            step={1}
+                            step={1.5}
                             class="w-full"
                         />
                     </div>
