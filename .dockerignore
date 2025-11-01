@@ -7,3 +7,5 @@ venv
 .env
 .github
 dist
+*/**/db.json
+db.json
