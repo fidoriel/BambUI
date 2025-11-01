@@ -19,8 +19,11 @@ from .types_ws import WsError, WsMessage
 from .printer_ftp import PrinterFileSystemEntry, ftps_connection
 from ping3 import ping
 from .types_general import SupportedPrinters, BBL_X1, BBL_X1C, BBL_X1E, BBL_H2D, BBL_H2S
+from tinydb import TinyDB, Query
 
 logger = getLogger(__name__)
+
+db = TinyDB(os.environ.get("BAMBUI_CACHE_PATH", "db.json"))
 
 
 class Printer:
@@ -154,6 +157,7 @@ class Printer:
             await self.camera_client.stop_stream()
             self.camera_client = None
 
+        await self.set_cache()
         logger.info("Tasks for %s stopped", self.name)
 
     async def callback_all_connected_ws(
@@ -194,7 +198,27 @@ class Printer:
     async def handle_system_callback(self, payload: dict[str, str]) -> None:
         pass
 
+    async def get_cached(self) -> dict[str, str]:
+        data = Query()
+        result = db.search(data.name == self.name)
+        logger.info("trying load cache for printer %s", self.name)
+        if result and isinstance(result, list) and len(result) == 1:
+            logger.info("loaded cache for printer %s", self.name)
+            return result[0]["data"]
+        return {}
+
+    async def set_cache(self) -> None:
+        q = Query()
+        d = {"name": self.name, "data": self.printer_status_values}
+        logger.info("saved cache for printer %s", self.name)
+        if not db.search(q.name == self.name):
+            db.insert(d)
+        else:
+            db.update(d, q.name == self.name)
+
     async def printer_subscriber(self) -> None:
+        if not self.printer_status_values:
+            self.printer_status_values = await self.get_cached()
         while True:
             if not await self.ping():
                 await asyncio.sleep(10)
@@ -222,13 +246,18 @@ class Printer:
                                 "Received from %s %s %s", self.name, self.model, payload
                             )
 
-                            if self.printer_status_values is None:
-                                self.printer_status_values = {}
+                            if not self.printer_status_values:
+                                self.printer_status_values = await self.get_cached()
 
                             if print_payload := payload.get("print"):
                                 self.printer_status_values.update(print_payload)
                                 if print_payload.get("msg") == 0:
                                     self.full_push = True
+                                if state_payload := print_payload.get("upgrade_state"):
+                                    sequence_id = state_payload.get("sequence_id")
+                                    if sequence_id == 0:
+                                        logger.info("saved initial payload")
+                                        await self.set_cache()
 
                             elif system_payload := payload.get("system"):
                                 await self.handle_system_callback(system_payload)
@@ -239,15 +268,24 @@ class Printer:
                             }
                             if self.full_push:
                                 await self.callback_all_connected_ws(client_payload)
-                            await self.request_full_push()
+                            # await self.request_full_push()
 
                         except KeyError:
                             logger.error(
                                 "Error while subscribing %s %s", self.name, self.model
                             )
+                            await self.set_cache()
                             continue
             except MqttError:
                 await asyncio.sleep(3)
+            except KeyboardInterrupt as e:
+                await self.set_cache()
+                raise e
+            except Exception as e:
+                await self.set_cache()
+                raise e
+            finally:
+                await self.set_cache()
 
     @asynccontextmanager
     async def client(

@@ -30,3 +30,7 @@ dist-ssr
 .ruff_cache
 .mypy_cache
 *.pyc
+
+## project
+
+*/**/db.json

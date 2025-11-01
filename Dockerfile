@@ -44,4 +44,6 @@ EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=5s --start-period=3s --retries=3 \
     CMD curl --fail http://localhost:8080/healthz || exit 1
 
+ENV BAMBUI_CACHE_PATH=/data/db.json
+
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8080"]

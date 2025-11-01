@@ -15,6 +15,7 @@ dependencies = [
     "aiomqtt>=2.3.0,<3",
     "aioftp>=0.24.1,<0.25",
     "ping3>=4.0.8,<5",
+    "tinydb>=4.8.2",
 ]
 
 [dependency-groups]
