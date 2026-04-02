@@ -11,7 +11,7 @@ router = APIRouter()
 
 
 @router.websocket("/printer/{printer_id}")
-async def printer_websocket(websocket: WebSocket, printer_id: str):
+async def printer_websocket(websocket: WebSocket, printer_id: str) -> None:
     printer = printers.get(printer_id)
     if printer is None:
         await websocket.close(code=4004, reason="Invalid Printer Name")

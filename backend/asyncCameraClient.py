@@ -1,3 +1,4 @@
+# pyright: reportIncompatibleMethodOverride=false
 import ssl
 from logging import getLogger
 
@@ -6,6 +7,7 @@ from bambu_connect.CameraClient import CameraClient
 
 
 import logging
+from typing import Any, Callable, Coroutine
 
 logger = getLogger(__name__)
 
@@ -13,7 +15,12 @@ logger = logging.getLogger(__name__)
 
 
 class AsyncCameraClient(CameraClient):
-    async def capture_stream(self, img_callback):
+    streaming: bool
+    stream_task: asyncio.Task[None] | None
+
+    async def capture_stream(
+        self, img_callback: Callable[[bytes], Coroutine[Any, Any, None]]
+    ) -> None:
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
@@ -56,18 +63,20 @@ class AsyncCameraClient(CameraClient):
                 await writer.wait_closed()
 
             except Exception as e:
-                logger.error(f"Connection error: {e}")
+                logger.error("Connection error: %s", e)
                 await asyncio.sleep(1)
-                break
+                continue
 
-    async def start_stream(self, img_callback):
+    async def start_stream(
+        self, img_callback: Callable[[bytes], Coroutine[Any, Any, None]]
+    ) -> None:
         if self.streaming:
             logger.info("Stream for %s already running.", self.hostname)
             return
 
         self.streaming = True
 
-        def on_done(task: asyncio.tasks.Task):
+        def on_done(task: asyncio.Task[None]) -> None:
             try:
                 task.result()
             except Exception as e:
@@ -82,7 +91,7 @@ class AsyncCameraClient(CameraClient):
             logger.error(f"An error occurred while starting the stream: {e}")
             self.streaming = False
 
-    async def stop_stream(self):
+    async def stop_stream(self) -> None:
         if not self.streaming:
             logger.warning("Stream for %s is not running.", self.hostname)
             return

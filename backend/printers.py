@@ -12,7 +12,8 @@ from .types_ws import WsJpegImage
 from .printer_payload import pushall_command
 import ssl
 import asyncio
-from aiomqtt.client import MqttError, Client as MqttClient
+from aiomqtt.client import Client as MqttClient
+from aiomqtt.exceptions import MqttError
 import json
 from .types_printer import PrinterRequest
 from .types_ws import WsError, WsMessage
@@ -83,14 +84,14 @@ class Printer:
         self.latest_image = image
         await self.callback_all_connected_ws(WsJpegImage.from_bytes(image))
 
-    async def start_printer_subscriber(self):
+    async def start_printer_subscriber(self) -> None:
         if self.printer_subscriber_task is None or self.printer_subscriber_task.done():
             self.printer_subscriber_task = asyncio.create_task(
                 self.printer_subscriber()
             )
             logger.info("Created new task for %s", self.name)
 
-            def on_done(task: asyncio.tasks.Task):
+            def on_done(task: asyncio.Task[None]) -> None:
                 self.full_push = False
                 try:
                     task.result()
@@ -277,11 +278,13 @@ class Printer:
                             await self.set_cache()
                             continue
             except MqttError:
+                self.mqtt_client = None
                 await asyncio.sleep(3)
             except KeyboardInterrupt as e:
                 await self.set_cache()
                 raise e
             except Exception as e:
+                self.mqtt_client = None
                 await self.set_cache()
                 raise e
             finally:
@@ -355,7 +358,7 @@ class Printer:
             user=self.username,
             password=self.access_code,
         ) as client:
-            client.remove(path=file_path)
+            await client.remove(path=file_path)
         return None
 
     async def ping(self) -> bool:
