@@ -3,6 +3,7 @@
     import { useRoute } from "@dvcol/svelte-simple-router/router";
     import { getBackendUrl } from "$lib/utils.js";
     import * as Tooltip from "$lib/components/ui/tooltip";
+    import extruderIllustration from "../assets/extruder.svg";
     import { Card, CardContent } from "$lib/components/ui/card";
     import { Button } from "$lib/components/ui/button";
     import { Slider } from "$lib/components/ui/slider";
@@ -267,7 +268,7 @@
     });
 </script>
 
-<div class="grid grid-flow-row-dense auto-rows-min grid-cols-1 gap-4 p-4 md:grid-cols-5">
+<div class="grid grid-flow-row-dense auto-rows-min grid-cols-1 gap-4 overflow-hidden p-4 md:grid-cols-5">
     <div class="flex flex-col space-y-4 md:col-span-3">
         <!-- Camera Feed -->
         <div class="w-full">
@@ -332,8 +333,8 @@
                     <!-- Print Progress -->
                     <Progress value={printerStatus?.mc_percent || 0} max={100} aria-label="Print progress" />
                 </div>
-                <div class="mt-4 flex flex-row items-center justify-between space-x-4">
-                    <h3 class="text-lg">Status {printerStatus?.print_type} {printerStatus?.mc_percent}%</h3>
+                <div class="mt-4 flex flex-row items-center gap-2">
+                    <h3 class="mr-auto text-lg">Status {printerStatus?.print_type} {printerStatus?.mc_percent}%</h3>
 
                     <Tooltip.Provider>
                         <Tooltip.Root>
@@ -424,248 +425,308 @@
                 >
             </div>
         </div>
-        <!-- Move Controls (Upper Right) -->
+        <!-- First-Section: Unified Controls Card -->
         <Card class="bg-900">
-            <CardContent class="p-2">
-                <div class="flex flex-col justify-center gap-4 md:flex-row md:gap-8">
-                    <!-- XY Controls -->
-                    <div class="flex flex-col gap-2">
-                        <!-- Y+ Controls -->
-                        <div class="flex justify-center">
-                            <div class="flex flex-col gap-2">
-                                <Button
-                                    onclick={() => {
-                                        sendWsCommand(new MoveY(+10));
-                                    }}
-                                    variant="outline"
-                                    class="w-16">Y+10</Button
-                                >
-                                <Button
-                                    onclick={() => {
-                                        sendWsCommand(new MoveY(+1));
-                                    }}
-                                    variant="outline"
-                                    class="w-16">Y+1</Button
-                                >
+            <CardContent class="p-4">
+                <!-- Desktop: 4-column layout with vertical dividers -->
+                <div class="hidden min-[1752px]:grid min-[1752px]:grid-cols-[auto_1px_1fr_1px_auto_1px_auto] min-[1752px]:gap-4">
+                    <!-- Column 1: Status (Temps, Light, Speed) -->
+                    <div class="flex flex-col justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <Thermometer class="h-5 w-5 shrink-0 text-muted-foreground" />
+                            <div>
+                                <p class="text-xs text-muted-foreground">Nozzle</p>
+                                <p class="text-lg font-semibold">{Math.round(printerStatus?.nozzle_temper ?? 0)}/{printerStatus?.nozzle_target_temper}°C</p>
                             </div>
                         </div>
+                        <div class="flex items-center gap-3">
+                            <Thermometer class="h-5 w-5 shrink-0 text-muted-foreground" />
+                            <div>
+                                <p class="text-xs text-muted-foreground">Bed</p>
+                                <p class="text-lg font-semibold">{Math.round(printerStatus?.bed_temper ?? 0)}/{printerStatus?.bed_target_temper}°C</p>
+                            </div>
+                        </div>
+                        {#if printer?.supports_chamber_temp}
+                            <div class="flex items-center gap-3">
+                                <Thermometer class="h-5 w-5 shrink-0 text-muted-foreground" />
+                                <div>
+                                    <p class="text-xs text-muted-foreground">Chamber</p>
+                                    <p class="text-lg font-semibold">{Math.round(printerStatus?.chamber_temper ?? 0)}°C</p>
+                                </div>
+                            </div>
+                        {/if}
+                        <hr class="border-border" />
+                        <div class="flex items-center gap-3">
+                            <Lightbulb class="h-5 w-5 shrink-0 text-muted-foreground" />
+                            <Switch
+                                id="printer-light"
+                                checked={controls.chamberLight.value}
+                                onCheckedChange={(enabled: boolean) => {
+                                    controls.chamberLight.onChange(enabled);
+                                    controls.chamberLight.onCommit(enabled);
+                                }}
+                            />
+                        </div>
+                        <hr class="border-border" />
+                        <AlertDialog.Root>
+                            <AlertDialog.Trigger>
+                                <button class="flex items-center gap-3 rounded-md p-1 text-left hover:bg-muted/50 transition-colors">
+                                    <CircleGauge class="h-5 w-5 shrink-0 text-muted-foreground" />
+                                    <div>
+                                        <p class="text-xs text-muted-foreground">Speed</p>
+                                        <p class="text-lg font-semibold">{speedModes[(printerStatus?.spd_lvl ?? 2) - 1] || "Normal"}</p>
+                                    </div>
+                                </button>
+                            </AlertDialog.Trigger>
+                            <AlertDialog.Content>
+                                <AlertDialog.Header>
+                                    <AlertDialog.Title>Print Speed</AlertDialog.Title>
+                                    <AlertDialog.Description>Select the print speed mode.</AlertDialog.Description>
+                                </AlertDialog.Header>
+                                <div class="grid grid-cols-2 gap-2 py-4">
+                                    {#each speedModes as mode, i}
+                                        <Button
+                                            variant={(printerStatus?.spd_lvl ?? 2) === i + 1 ? "default" : "outline"}
+                                            onclick={() => sendWsCommand(new PrintSpeed((i + 1) as 1 | 2 | 3 | 4))}
+                                            class="w-full"
+                                        >{mode}</Button>
+                                    {/each}
+                                </div>
+                                <AlertDialog.Footer>
+                                    <AlertDialog.Cancel>Close</AlertDialog.Cancel>
+                                </AlertDialog.Footer>
+                            </AlertDialog.Content>
+                        </AlertDialog.Root>
+                    </div>
 
-                        <!-- X Controls -->
+                    <!-- Vertical Divider -->
+                    <div class="bg-border"></div>
+
+                    <!-- Column 2: Movement (XY D-pad + Z row) -->
+                    <div class="flex flex-col items-center justify-between gap-4">
+                        <!-- XY D-pad: SVG with clickable wedge buttons -->
+                        <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+                        <svg viewBox="0 0 249 249" class="h-[220px] w-[220px]" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <style>
+                                .dpad-wedge { fill: var(--dpad-fill); cursor: pointer; transition: fill 0.15s; }
+                                .dpad-wedge:hover { fill: var(--dpad-fill-hover); }
+                                .dpad-label { fill: var(--dpad-text); font-size: 11px; font-weight: 600; font-family: sans-serif; pointer-events: none; user-select: none; }
+                                .dpad-home { fill: var(--dpad-home); cursor: pointer; transition: fill 0.15s; }
+                                .dpad-home:hover { fill: var(--dpad-home-hover); }
+                            </style>
+                            <!-- Outer ring: Y+10 (top) -->
+                            <path on:click={() => sendWsCommand(new MoveY(+10))} role="button" tabindex="0" d="M124.5 0C157.273 0 187.088 12.6638 209.32 33.3643L183.279 59.4053C167.854 45.4795 147.418 37 125 37C102.328 37 81.681 45.673 66.1963 59.8818L39.6787 33.3643C61.9107 12.6635 91.7265 0 124.5 0Z" class="dpad-wedge" />
+                            <text x="124.5" y="22" text-anchor="middle" class="dpad-label">Y+10</text>
+
+                            <!-- Outer ring: X-10 (left) -->
+                            <path on:click={() => sendWsCommand(new MoveX(-10))} role="button" tabindex="0" d="M60.5537 65.5537C46.5389 80.9979 38 101.502 38 124C38 146.418 46.4795 166.854 60.4053 182.279L33.3643 209.32C12.6638 187.088 0 157.273 0 124.5C0 91.392 12.9237 61.3029 34.001 39.001L60.5537 65.5537Z" class="dpad-wedge" />
+                            <text x="20" y="128" text-anchor="middle" class="dpad-label">X-10</text>
+
+                            <!-- Outer ring: X+10 (right) -->
+                            <path on:click={() => sendWsCommand(new MoveX(+10))} role="button" tabindex="0" d="M214.998 39.001C236.076 61.303 249 91.3918 249 124.5C249 157.274 236.336 187.088 215.635 209.32L189.117 182.803C203.326 167.318 212 146.672 212 124C212 101.247 203.265 80.5351 188.966 65.0322L214.998 39.001Z" class="dpad-wedge" />
+                            <text x="229" y="128" text-anchor="middle" class="dpad-label">X+10</text>
+
+                            <!-- Outer ring: Y-10 (bottom) -->
+                            <path on:click={() => sendWsCommand(new MoveY(-10))} role="button" tabindex="0" d="M66.0322 187.966C81.5351 202.265 102.247 211 125 211C147.498 211 168.001 202.46 183.445 188.445L209.998 214.998C187.696 236.075 157.608 249 124.5 249C91.3918 249 61.303 236.076 39.001 214.998L66.0322 187.966Z" class="dpad-wedge" />
+                            <text x="124.5" y="234" text-anchor="middle" class="dpad-label">Y-10</text>
+
+                            <!-- Inner wedge: Y+1 (top) -->
+                            <path on:click={() => sendWsCommand(new MoveY(+1))} role="button" tabindex="0" d="M125 45C145.208 45 163.643 52.5887 177.613 65.0703L124.5 118.186L71.8584 65.5439C85.8905 52.7801 104.537 45 125 45Z" class="dpad-wedge" />
+                            <text x="124.5" y="68" text-anchor="middle" class="dpad-label">Y+1</text>
+
+                            <!-- Inner wedge: X-1 (left) -->
+                            <path on:click={() => sendWsCommand(new MoveX(-1))} role="button" tabindex="0" d="M118.843 123.843L66.0703 176.613C53.5887 162.643 46 144.208 46 124C46 103.711 53.6482 85.209 66.2188 71.2188L118.843 123.843Z" class="dpad-wedge" />
+                            <text x="72" y="128" text-anchor="middle" class="dpad-label">X-1</text>
+
+                            <!-- Inner wedge: X+1 (right) -->
+                            <path on:click={() => sendWsCommand(new MoveX(+1))} role="button" tabindex="0" d="M183.305 70.6943C196.158 84.7451 204 103.456 204 124C204 144.463 196.219 163.109 183.455 177.141L130.157 123.843L183.305 70.6943Z" class="dpad-wedge" />
+                            <text x="177" y="128" text-anchor="middle" class="dpad-label">X+1</text>
+
+                            <!-- Inner wedge: Y-1 (bottom) -->
+                            <path on:click={() => sendWsCommand(new MoveY(-1))} role="button" tabindex="0" d="M177.78 182.78C163.79 195.351 145.289 203 125 203C104.456 203 85.7451 195.158 71.6943 182.305L124.5 129.5L177.78 182.78Z" class="dpad-wedge" />
+                            <text x="124.5" y="190" text-anchor="middle" class="dpad-label">Y-1</text>
+
+                            <!-- Center: Home button -->
+                            <circle on:click={() => sendWsCommand(new MoveHome())} role="button" tabindex="0" cx="124.5" cy="124" r="28" class="dpad-home" stroke="hsl(136,64%,38%)" stroke-width="2" />
+                            <g pointer-events="none" transform="translate(124.5, 124)">
+                                <path d="M0-10l-9 7.5v9.5a1.5 1.5 0 001.5 1.5h5v-5h5v5h5a1.5 1.5 0 001.5-1.5v-9.5z" fill="none" stroke="hsl(136, 64%, 38%)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                            </g>
+                        </svg>
+                        <!-- Z Row -->
                         <div class="flex gap-2">
-                            <Button
-                                onclick={() => {
-                                    sendWsCommand(new MoveX(+10));
-                                }}
-                                variant="outline"
-                                class="w-16">X+10</Button
-                            >
-                            <Button
-                                onclick={() => {
-                                    sendWsCommand(new MoveX(+1));
-                                }}
-                                variant="outline"
-                                class="w-16">X+1</Button
-                            >
-                            <Button
-                                onclick={() => {
-                                    sendWsCommand(new MoveHome());
-                                }}
-                                variant="outline"
-                                class="w-16"
-                            >
-                                <Home class="h-4 w-4" />
-                            </Button>
-                            <Button
-                                onclick={() => {
-                                    sendWsCommand(new MoveX(-1));
-                                }}
-                                variant="outline"
-                                class="w-16">X-1</Button
-                            >
-                            <Button
-                                onclick={() => {
-                                    sendWsCommand(new MoveX(-10));
-                                }}
-                                variant="outline"
-                                class="w-16">X-10</Button
-                            >
-                        </div>
-
-                        <!-- Y- Controls -->
-                        <div class="flex justify-center">
-                            <div class="flex flex-col gap-2">
-                                <Button
-                                    onclick={() => {
-                                        sendWsCommand(new MoveY(-1));
-                                    }}
-                                    variant="outline"
-                                    class="w-16">Y-1</Button
-                                >
-                                <Button
-                                    onclick={() => {
-                                        sendWsCommand(new MoveY(-10));
-                                    }}
-                                    variant="outline"
-                                    class="w-16">Y-10</Button
-                                >
-                            </div>
+                            <Button onclick={() => sendWsCommand(new MoveZ(+10))} variant="outline" class="h-8 w-14 text-xs">Z+10</Button>
+                            <Button onclick={() => sendWsCommand(new MoveZ(+1))} variant="outline" class="h-8 w-14 text-xs">Z+1</Button>
+                            <Button onclick={() => sendWsCommand(new MoveZ(-1))} variant="outline" class="h-8 w-14 text-xs">Z-1</Button>
+                            <Button onclick={() => sendWsCommand(new MoveZ(-10))} variant="outline" class="h-8 w-14 text-xs">Z-10</Button>
                         </div>
                     </div>
 
-                    <!-- Z and Filament Controls -->
-                    <div class="flex gap-8">
-                        <!-- Z Controls -->
-                        <div class="flex flex-col gap-2">
-                            <Button
-                                onclick={() => {
-                                    sendWsCommand(new MoveZ(+10));
-                                }}
-                                variant="outline"
-                                class="w-16">Z+10</Button
-                            >
-                            <Button
-                                onclick={() => {
-                                    sendWsCommand(new MoveZ(+1));
-                                }}
-                                variant="outline"
-                                class="w-16">Z+1</Button
-                            >
-                            <Button
-                                onclick={() => {
-                                    sendWsCommand(new MoveZ(-1));
-                                }}
-                                variant="outline"
-                                class="w-16">Z-1</Button
-                            >
-                            <Button
-                                onclick={() => {
-                                    sendWsCommand(new MoveZ(-10));
-                                }}
-                                variant="outline"
-                                class="w-16">Z-10</Button
-                            >
-                        </div>
+                    <!-- Vertical Divider -->
+                    <div class="bg-border"></div>
 
-                        <!-- Filament Controls -->
-                        <div class="flex flex-col gap-2">
-                            <Button
-                                onclick={() => {
-                                    sendWsCommand(new MoveE(-10));
-                                }}
-                                variant="outline"
-                                class="w-16">Retract</Button
-                            >
-                            <Button
-                                onclick={() => {
-                                    sendWsCommand(new MoveE(10));
-                                }}
-                                variant="outline"
-                                class="w-16">Extrude</Button
-                            >
-                            <Button
-                                onclick={() => {
-                                    sendWsCommand(new FilamentLoad());
-                                }}
-                                variant="outline"
-                                class="w-16">Load</Button
-                            >
-                            <Button
-                                onclick={() => {
-                                    sendWsCommand(new FilamentUnload());
-                                }}
-                                variant="outline"
-                                class="w-16">Unload</Button
-                            >
-                        </div>
+                    <!-- Column 3: Filament Controls -->
+                    <div class="flex flex-col items-center justify-center gap-2">
+                        <Button onclick={() => sendWsCommand(new MoveE(-10))} variant="outline" class="h-8 w-20 text-xs">Retract</Button>
+                        <img src={extruderIllustration} alt="Extruder" class="h-20 w-[30px] object-contain opacity-70" />
+                        <Button onclick={() => sendWsCommand(new MoveE(10))} variant="outline" class="h-8 w-20 text-xs">Extrude</Button>
+                        <hr class="w-full border-border" />
+                        <Button onclick={() => sendWsCommand(new FilamentLoad())} variant="outline" class="h-8 w-20 text-xs">Load</Button>
+                        <Button onclick={() => sendWsCommand(new FilamentUnload())} variant="outline" class="h-8 w-20 text-xs">Unload</Button>
+                    </div>
 
-                        <!-- Calibration -->
-                        <div class="flex flex-col gap-2">
-                            <Button
-                                onclick={() => {
-                                    sendWsCommand(new Calibration(true, false, false));
-                                }}
-                                variant="outline"
-                                class="w-32">Level Bed</Button
-                            >
-                            <Button
-                                onclick={() => {
-                                    sendWsCommand(new Calibration(true, true, true));
-                                }}
-                                variant="outline"
-                                class="w-32">Full Calibration</Button
-                            >
-                        </div>
+                    <!-- Vertical Divider -->
+                    <div class="bg-border"></div>
+
+                    <!-- Column 4: Calibration -->
+                    <div class="flex flex-col items-center justify-center gap-2">
+                        <Button onclick={() => sendWsCommand(new Calibration(true, false, false))} variant="outline" class="h-8 w-28 text-xs">Level Bed</Button>
+                        <Button onclick={() => sendWsCommand(new Calibration(true, true, true))} variant="outline" class="h-8 w-28 text-xs">Full Calibration</Button>
                     </div>
                 </div>
-                <div class="mt-6 grid grid-cols-1 gap-4">
-                    <div class="bg-400 rounded-lg p-3">
-                        <div class="mb-2 flex justify-between">
-                            <div class="flex flex-row gap-1">
-                                <CircleGauge />
-                                Speed
+
+                <!-- Mobile/Tablet: stacked single-column layout -->
+                <div class="flex flex-col gap-4 min-[1752px]:hidden">
+                    <!-- Status Row -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="flex items-center gap-2">
+                            <Thermometer class="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <div>
+                                <p class="text-xs text-muted-foreground">Nozzle</p>
+                                <p class="text-base font-semibold">{Math.round(printerStatus?.nozzle_temper ?? 0)}/{printerStatus?.nozzle_target_temper}°C</p>
                             </div>
-                            <span>Normal</span>
                         </div>
-                        <Slider
-                            disabled
-                            onValueCommit={(value: number[]) => {
-                                sendWsCommand(new PrintSpeed(value[0] as 1 | 2 | 3 | 4));
-                            }}
-                            value={[1]}
-                            min={1}
-                            max={3}
-                            step={1}
-                            class="w-full"
-                        />
+                        <div class="flex items-center gap-2">
+                            <Thermometer class="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <div>
+                                <p class="text-xs text-muted-foreground">Bed</p>
+                                <p class="text-base font-semibold">{Math.round(printerStatus?.bed_temper ?? 0)}/{printerStatus?.bed_target_temper}°C</p>
+                            </div>
+                        </div>
+                        {#if printer?.supports_chamber_temp}
+                            <div class="flex items-center gap-2">
+                                <Thermometer class="h-4 w-4 shrink-0 text-muted-foreground" />
+                                <div>
+                                    <p class="text-xs text-muted-foreground">Chamber</p>
+                                    <p class="text-base font-semibold">{Math.round(printerStatus?.chamber_temper ?? 0)}°C</p>
+                                </div>
+                            </div>
+                        {/if}
+                        <div class="flex items-center gap-2">
+                            <Lightbulb class="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <Switch
+                                id="printer-light-mobile"
+                                checked={controls.chamberLight.value}
+                                onCheckedChange={(enabled: boolean) => {
+                                    controls.chamberLight.onChange(enabled);
+                                    controls.chamberLight.onCommit(enabled);
+                                }}
+                            />
+                        </div>
+                    </div>
+                    <AlertDialog.Root>
+                        <AlertDialog.Trigger>
+                            <button class="flex items-center gap-2 rounded-md p-1 text-left hover:bg-muted/50 transition-colors">
+                                <CircleGauge class="h-4 w-4 shrink-0 text-muted-foreground" />
+                                <span class="text-xs text-muted-foreground">Speed</span>
+                                <span class="text-sm font-semibold">{speedModes[(printerStatus?.spd_lvl ?? 2) - 1] || "Normal"}</span>
+                            </button>
+                        </AlertDialog.Trigger>
+                        <AlertDialog.Content>
+                            <AlertDialog.Header>
+                                <AlertDialog.Title>Print Speed</AlertDialog.Title>
+                                <AlertDialog.Description>Select the print speed mode.</AlertDialog.Description>
+                            </AlertDialog.Header>
+                            <div class="grid grid-cols-2 gap-2 py-4">
+                                {#each speedModes as mode, i}
+                                    <Button
+                                        variant={(printerStatus?.spd_lvl ?? 2) === i + 1 ? "default" : "outline"}
+                                        onclick={() => sendWsCommand(new PrintSpeed((i + 1) as 1 | 2 | 3 | 4))}
+                                        class="w-full"
+                                    >{mode}</Button>
+                                {/each}
+                            </div>
+                            <AlertDialog.Footer>
+                                <AlertDialog.Cancel>Close</AlertDialog.Cancel>
+                            </AlertDialog.Footer>
+                        </AlertDialog.Content>
+                    </AlertDialog.Root>
+
+                    <hr class="border-border" />
+
+                    <!-- XY D-pad (Mobile) -->
+                    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+                    <svg viewBox="0 0 249 249" class="mx-auto h-[180px] w-[180px]" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <style>
+                            .dpad-wedge { fill: var(--dpad-fill); cursor: pointer; transition: fill 0.15s; }
+                            .dpad-wedge:hover { fill: var(--dpad-fill-hover); }
+                            .dpad-label { fill: var(--dpad-text); font-size: 11px; font-weight: 600; font-family: sans-serif; pointer-events: none; user-select: none; }
+                            .dpad-home { fill: var(--dpad-home); cursor: pointer; transition: fill 0.15s; }
+                            .dpad-home:hover { fill: var(--dpad-home-hover); }
+                        </style>
+                        <path on:click={() => sendWsCommand(new MoveY(+10))} role="button" tabindex="0" d="M124.5 0C157.273 0 187.088 12.6638 209.32 33.3643L183.279 59.4053C167.854 45.4795 147.418 37 125 37C102.328 37 81.681 45.673 66.1963 59.8818L39.6787 33.3643C61.9107 12.6635 91.7265 0 124.5 0Z" class="dpad-wedge" />
+                        <text x="124.5" y="22" text-anchor="middle" class="dpad-label">Y+10</text>
+
+                        <path on:click={() => sendWsCommand(new MoveX(-10))} role="button" tabindex="0" d="M60.5537 65.5537C46.5389 80.9979 38 101.502 38 124C38 146.418 46.4795 166.854 60.4053 182.279L33.3643 209.32C12.6638 187.088 0 157.273 0 124.5C0 91.392 12.9237 61.3029 34.001 39.001L60.5537 65.5537Z" class="dpad-wedge" />
+                        <text x="20" y="128" text-anchor="middle" class="dpad-label">X-10</text>
+
+                        <path on:click={() => sendWsCommand(new MoveX(+10))} role="button" tabindex="0" d="M214.998 39.001C236.076 61.303 249 91.3918 249 124.5C249 157.274 236.336 187.088 215.635 209.32L189.117 182.803C203.326 167.318 212 146.672 212 124C212 101.247 203.265 80.5351 188.966 65.0322L214.998 39.001Z" class="dpad-wedge" />
+                        <text x="229" y="128" text-anchor="middle" class="dpad-label">X+10</text>
+
+                        <path on:click={() => sendWsCommand(new MoveY(-10))} role="button" tabindex="0" d="M66.0322 187.966C81.5351 202.265 102.247 211 125 211C147.498 211 168.001 202.46 183.445 188.445L209.998 214.998C187.696 236.075 157.608 249 124.5 249C91.3918 249 61.303 236.076 39.001 214.998L66.0322 187.966Z" class="dpad-wedge" />
+                        <text x="124.5" y="234" text-anchor="middle" class="dpad-label">Y-10</text>
+
+                        <path on:click={() => sendWsCommand(new MoveY(+1))} role="button" tabindex="0" d="M125 45C145.208 45 163.643 52.5887 177.613 65.0703L124.5 118.186L71.8584 65.5439C85.8905 52.7801 104.537 45 125 45Z" class="dpad-wedge" />
+                        <text x="124.5" y="68" text-anchor="middle" class="dpad-label">Y+1</text>
+
+                        <path on:click={() => sendWsCommand(new MoveX(-1))} role="button" tabindex="0" d="M118.843 123.843L66.0703 176.613C53.5887 162.643 46 144.208 46 124C46 103.711 53.6482 85.209 66.2188 71.2188L118.843 123.843Z" class="dpad-wedge" />
+                        <text x="72" y="128" text-anchor="middle" class="dpad-label">X-1</text>
+
+                        <path on:click={() => sendWsCommand(new MoveX(+1))} role="button" tabindex="0" d="M183.305 70.6943C196.158 84.7451 204 103.456 204 124C204 144.463 196.219 163.109 183.455 177.141L130.157 123.843L183.305 70.6943Z" class="dpad-wedge" />
+                        <text x="177" y="128" text-anchor="middle" class="dpad-label">X+1</text>
+
+                        <path on:click={() => sendWsCommand(new MoveY(-1))} role="button" tabindex="0" d="M177.78 182.78C163.79 195.351 145.289 203 125 203C104.456 203 85.7451 195.158 71.6943 182.305L124.5 129.5L177.78 182.78Z" class="dpad-wedge" />
+                        <text x="124.5" y="190" text-anchor="middle" class="dpad-label">Y-1</text>
+
+                        <circle on:click={() => sendWsCommand(new MoveHome())} role="button" tabindex="0" cx="124.5" cy="124" r="28" class="dpad-home" stroke="hsl(136,64%,38%)" stroke-width="2" />
+                        <g pointer-events="none" transform="translate(124.5, 124)">
+                            <path d="M0-10l-9 7.5v9.5a1.5 1.5 0 001.5 1.5h5v-5h5v5h5a1.5 1.5 0 001.5-1.5v-9.5z" fill="none" stroke="hsl(136, 64%, 38%)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                        </g>
+                    </svg>
+
+                    <!-- Z Row (Mobile) -->
+                    <div class="flex justify-center gap-1">
+                        <Button onclick={() => sendWsCommand(new MoveZ(+10))} variant="outline" class="h-8 w-12 text-xs">Z+10</Button>
+                        <Button onclick={() => sendWsCommand(new MoveZ(+1))} variant="outline" class="h-8 w-12 text-xs">Z+1</Button>
+                        <Button onclick={() => sendWsCommand(new MoveZ(-1))} variant="outline" class="h-8 w-12 text-xs">Z-1</Button>
+                        <Button onclick={() => sendWsCommand(new MoveZ(-10))} variant="outline" class="h-8 w-12 text-xs">Z-10</Button>
+                    </div>
+
+                    <hr class="border-border" />
+
+                    <!-- Filament Controls (Mobile) -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <Button onclick={() => sendWsCommand(new MoveE(-10))} variant="outline" class="h-8 text-xs">Retract</Button>
+                        <Button onclick={() => sendWsCommand(new MoveE(10))} variant="outline" class="h-8 text-xs">Extrude</Button>
+                        <Button onclick={() => sendWsCommand(new FilamentLoad())} variant="outline" class="h-8 text-xs">Load</Button>
+                        <Button onclick={() => sendWsCommand(new FilamentUnload())} variant="outline" class="h-8 text-xs">Unload</Button>
+                    </div>
+
+                    <hr class="border-border" />
+
+                    <!-- Calibration (Mobile) -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <Button onclick={() => sendWsCommand(new Calibration(true, false, false))} variant="outline" class="h-8 text-xs">Level Bed</Button>
+                        <Button onclick={() => sendWsCommand(new Calibration(true, true, true))} variant="outline" class="h-8 text-xs">Full Calibration</Button>
                     </div>
                 </div>
             </CardContent>
         </Card>
 
-        <!-- Chamber Controls (Lower Right) -->
-        <Card class="space-y-6">
-            <CardContent class="p-4">
-                <div class="flex flex-row gap-4">
-                    <div class="flex w-full flex-col items-center justify-center space-y-1">
-                        <div class="text-400 flex items-center justify-center space-x-2 text-sm">
-                            <Thermometer /> Nozzle
-                        </div>
-                        <div class="text-center text-xl">
-                            {Math.round(printerStatus?.nozzle_temper ?? 0)}/{printerStatus?.nozzle_target_temper}°C
-                        </div>
-                    </div>
-                    <div class="flex w-full flex-col items-center justify-center space-y-1">
-                        <div class="text-400 flex items-center justify-center space-x-2 text-sm">
-                            <Thermometer /> Bed
-                        </div>
-                        <div class="text-center text-xl">
-                            {Math.round(printerStatus?.bed_temper ?? 0)}/{printerStatus?.bed_target_temper}°C
-                        </div>
-                    </div>
-                    {#if printer?.supports_chamber_temp}
-                        <div class="flex w-full flex-col items-center justify-center space-y-1">
-                            <div class="text-400 flex items-center justify-center space-x-2 text-sm">
-                                <Thermometer /> Chamber
-                            </div>
-                            <div class="text-center text-xl">{Math.round(printerStatus?.chamber_temper ?? 0)}°C</div>
-                        </div>
-                    {/if}
-                    <div class="flex w-full items-center justify-center space-x-2">
-                        <Switch
-                            id="printer-light"
-                            checked={controls.chamberLight.value}
-                            onCheckedChange={(enabled: boolean) => {
-                                controls.chamberLight.onChange(enabled);
-                                controls.chamberLight.onCommit(enabled);
-                            }}
-                        />
-                        <Label for="printer-light">
-                            <Lightbulb class="h-5 w-5" />
-                        </Label>
-                    </div>
-                </div>
 
-                <div class="mt-6 grid grid-cols-1 gap-4">
+        <!-- Fan Controls -->
+        <Card>
+            <CardContent class="p-4">
+                <div class="grid grid-cols-1 gap-4">
                     <div class="bg-400 rounded-lg p-3">
                         <div class="mb-2 flex justify-between">
                             <div class="flex flex-row gap-1">

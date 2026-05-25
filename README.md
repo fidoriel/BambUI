@@ -117,3 +117,7 @@ ruff format .
 npm run format
 npm run build
 ```
+
+## Credits
+
+Logo created by [moon studio](https://thenounproject.com) from Noun Project, licensed under [CC BY-3.0](https://creativecommons.org/licenses/by/3.0/).
