@@ -14,12 +14,12 @@
         --card-foreground: 240 10% 3.9%;
         --border: 240 5.9% 90%;
         --input: 240 5.9% 90%;
-        --primary: 240 5.9% 10%;
-        --primary-foreground: 0 0% 98%;
+        --primary: 136 64% 38%;
+        --primary-foreground: 0 0% 100%;
         --secondary: 240 4.8% 95.9%;
         --secondary-foreground: 240 5.9% 10%;
-        --accent: 240 4.8% 95.9%;
-        --accent-foreground: 240 5.9% 10%;
+        --accent: 136 64% 38%;
+        --accent-foreground: 0 0% 100%;
         --destructive: 0 72.2% 50.6%;
         --destructive-foreground: 0 0% 98%;
         --ring: 240 10% 3.9%;
@@ -45,23 +45,23 @@
         --card-foreground: 0 0% 98%;
         --border: 240 3.7% 15.9%;
         --input: 240 3.7% 15.9%;
-        --primary: 0 0% 98%;
-        --primary-foreground: 240 5.9% 10%;
+        --primary: 136 64% 38%;
+        --primary-foreground: 0 0% 100%;
         --secondary: 240 3.7% 15.9%;
         --secondary-foreground: 0 0% 98%;
-        --accent: 240 3.7% 15.9%;
-        --accent-foreground: 0 0% 98%;
+        --accent: 136 64% 38%;
+        --accent-foreground: 0 0% 100%;
         --destructive: 0 62.8% 30.6%;
         --destructive-foreground: 0 0% 98%;
-        --ring: 240 4.9% 83.9%;
+        --ring: 136 64% 38%;
         --sidebar-background: 240 5.9% 10%;
         --sidebar-foreground: 240 4.8% 95.9%;
-        --sidebar-primary: 224.3 76.3% 48%;
+        --sidebar-primary: 136 64% 38%;
         --sidebar-primary-foreground: 0 0% 100%;
         --sidebar-accent: 240 3.7% 15.9%;
         --sidebar-accent-foreground: 240 4.8% 95.9%;
         --sidebar-border: 240 3.7% 15.9%;
-        --sidebar-ring: 217.2 91.2% 59.8%;
+        --sidebar-ring: 136 64% 38%;
     }
 }
 
@@ -72,4 +72,20 @@
     body {
         @apply bg-background text-foreground;
     }
+}
+
+:root {
+    --dpad-fill: #eeeeee;
+    --dpad-fill-hover: #dddddd;
+    --dpad-text: #1a1a1a;
+    --dpad-home: #d4edda;
+    --dpad-home-hover: #c3e6cb;
+}
+
+.dark {
+    --dpad-fill: #4a4a50;
+    --dpad-fill-hover: #5a5a62;
+    --dpad-text: #ffffff;
+    --dpad-home: #43434a;
+    --dpad-home-hover: #53535a;
 }
