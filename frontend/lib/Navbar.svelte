@@ -22,18 +22,20 @@
         }
     }
 
-    onMount(async () => {
+    onMount(() => {
         updatePageName();
         window.addEventListener("hashchange", updatePageName);
         window.addEventListener("popstate", updatePageName);
 
-        try {
-            const response = await fetch(url + "/api/printers");
-            if (!response.ok) throw new Error("Failed to fetch printers");
-            printers = await response.json();
-        } catch (error) {
-            console.error("Error fetching printers:", error);
-        }
+        void (async () => {
+            try {
+                const response = await fetch(url + "/api/printers");
+                if (!response.ok) throw new Error("Failed to fetch printers");
+                printers = await response.json();
+            } catch (error) {
+                console.error("Error fetching printers:", error);
+            }
+        })();
 
         return () => {
             window.removeEventListener("hashchange", updatePageName);
@@ -42,18 +44,18 @@
     });
 </script>
 
-<div class="sticky top-0 z-50 w-full bg-[#eeeeee] dark:bg-[#28282b]">
-        <div class="flex h-[50px] w-full items-center px-4">
-        <a href="/" use:link class="flex items-center gap-2" onclick={updatePageName}>
+<div class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div class="flex h-14 w-full items-center px-4">
+        <a href="/" use:link class="flex items-center gap-2 transition-colors hover:text-foreground/80" onclick={updatePageName}>
             <img src={bambuiLogo} alt="BambUI" class="h-7 w-7" />
-            <span class="text-lg font-semibold text-primary">BambUI</span>
-            <span class="text-lg font-light text-primary">&nbsp;|&nbsp;</span>
-            <span class="text-lg font-light text-primary">{currentPage}</span>
+            <span class="text-lg font-semibold text-foreground">BambUI</span>
+            <span class="text-lg font-light text-muted-foreground">/</span>
+            <span class="text-lg font-light text-muted-foreground">{currentPage}</span>
         </a>
 
-        <div class="ml-auto flex items-center space-x-4">
+        <div class="ml-auto flex items-center gap-2">
             <ModeToggleButton />
-            <a href="https://github.com/fidoriel/BambUI" target="_blank"> <GitHubButton /></a>
+            <a href="https://github.com/fidoriel/BambUI" target="_blank"><GitHubButton /></a>
         </div>
     </div>
 </div>
