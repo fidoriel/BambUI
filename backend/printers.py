@@ -224,7 +224,7 @@ class Printer:
 
         if self.mqtt_client is not None:
             try:
-                logger.info("Publishing %s to %s %s", payload, self.name, self.model)
+                logger.debug("Publishing %s to %s %s", payload, self.name, self.model)
                 await self.mqtt_client.publish(self.request_topic, payload)
             except MqttError:
                 await self.send_ws_error("Printer MQTT Connection Error")
@@ -288,7 +288,7 @@ class Printer:
                                 )
                                 continue
                             payload = json.loads(message.payload)
-                            logger.info(
+                            logger.debug(
                                 "Received from %s %s %s", self.name, self.model, payload
                             )
 

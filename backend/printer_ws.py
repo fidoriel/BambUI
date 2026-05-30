@@ -27,7 +27,7 @@ async def printer_websocket(websocket: WebSocket, printer_id: str) -> None:
         try:
             while True:
                 data = await websocket.receive_json()
-                logger.info(
+                logger.debug(
                     "Received from user for %s %s %s",
                     printer.name,
                     printer.model,
