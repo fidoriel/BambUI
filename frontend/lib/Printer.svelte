@@ -51,9 +51,8 @@
 
     const speedModes = ["Silent", "Standard", "Sport", "Ludicrous"];
 
-    const { route, location, routing } = useRoute();
-    const queryParams = $derived(location.query);
-    const printerId = queryParams["printerId"];
+    const { location } = useRoute();
+    const printerId = $derived(location?.query["printerId"] ?? "");
 
     let printerStatusPulse = $state(false);
     let printerSignOfLife = $state(false);
@@ -64,7 +63,9 @@
     let ws = $state<WebSocket | null>(null);
     let connectionError = $state<string | null>(null);
     let printerStatus = $state<PrinterStatus | undefined>(undefined);
-    let printerLightOn = $state<boolean>(false);
+    let chamberLightOn = $derived(
+        printerStatus?.lights_report?.some((light) => light.node === "chamber_light" && light.mode === "on") ?? false,
+    );
 
     // Websocket States
     let reconnectAttempts = 0;
@@ -134,10 +135,6 @@
     }
 
     const controls = {
-        chamberLight: createSmartControl(
-            () => printerStatus?.lights_report?.[0]?.mode === "on",
-            (v) => sendWsCommand(new ChamberLight(v)),
-        ),
         partFan: createSmartControl(
             () => Number(printerStatus?.cooling_fan_speed || 0),
             (v) => sendWsCommand(new PartFanSpeed(scaleSliderToBackend(v, 15))),
@@ -189,7 +186,6 @@
             } else if (message.type === "printer_status") {
                 printerSignOfLife = true;
                 printerStatus = message.data as PrinterStatus;
-                printerLightOn = printerStatus?.lights_report?.[0]?.mode === "on";
 
                 printerStatusPulse = true;
                 setTimeout(() => (printerStatusPulse = false), 500);
@@ -460,10 +456,9 @@
                             <Lightbulb class="h-5 w-5 shrink-0 text-muted-foreground" />
                             <Switch
                                 id="printer-light"
-                                checked={controls.chamberLight.value}
+                                checked={chamberLightOn}
                                 onCheckedChange={(enabled: boolean) => {
-                                    controls.chamberLight.onChange(enabled);
-                                    controls.chamberLight.onCommit(enabled);
+                                    sendWsCommand(new ChamberLight(enabled));
                                 }}
                             />
                         </div>
@@ -515,39 +510,39 @@
                                 .dpad-home:hover { fill: var(--dpad-home-hover); }
                             </style>
                             <!-- Outer ring: Y+10 (top) -->
-                            <path on:click={() => sendWsCommand(new MoveY(+10))} role="button" tabindex="0" d="M124.5 0C157.273 0 187.088 12.6638 209.32 33.3643L183.279 59.4053C167.854 45.4795 147.418 37 125 37C102.328 37 81.681 45.673 66.1963 59.8818L39.6787 33.3643C61.9107 12.6635 91.7265 0 124.5 0Z" class="dpad-wedge" />
+                            <path onclick={() => sendWsCommand(new MoveY(+10))} role="button" tabindex="0" d="M124.5 0C157.273 0 187.088 12.6638 209.32 33.3643L183.279 59.4053C167.854 45.4795 147.418 37 125 37C102.328 37 81.681 45.673 66.1963 59.8818L39.6787 33.3643C61.9107 12.6635 91.7265 0 124.5 0Z" class="dpad-wedge" />
                             <text x="124.5" y="22" text-anchor="middle" class="dpad-label">Y+10</text>
 
                             <!-- Outer ring: X-10 (left) -->
-                            <path on:click={() => sendWsCommand(new MoveX(-10))} role="button" tabindex="0" d="M60.5537 65.5537C46.5389 80.9979 38 101.502 38 124C38 146.418 46.4795 166.854 60.4053 182.279L33.3643 209.32C12.6638 187.088 0 157.273 0 124.5C0 91.392 12.9237 61.3029 34.001 39.001L60.5537 65.5537Z" class="dpad-wedge" />
+                            <path onclick={() => sendWsCommand(new MoveX(-10))} role="button" tabindex="0" d="M60.5537 65.5537C46.5389 80.9979 38 101.502 38 124C38 146.418 46.4795 166.854 60.4053 182.279L33.3643 209.32C12.6638 187.088 0 157.273 0 124.5C0 91.392 12.9237 61.3029 34.001 39.001L60.5537 65.5537Z" class="dpad-wedge" />
                             <text x="20" y="128" text-anchor="middle" class="dpad-label">X-10</text>
 
                             <!-- Outer ring: X+10 (right) -->
-                            <path on:click={() => sendWsCommand(new MoveX(+10))} role="button" tabindex="0" d="M214.998 39.001C236.076 61.303 249 91.3918 249 124.5C249 157.274 236.336 187.088 215.635 209.32L189.117 182.803C203.326 167.318 212 146.672 212 124C212 101.247 203.265 80.5351 188.966 65.0322L214.998 39.001Z" class="dpad-wedge" />
+                            <path onclick={() => sendWsCommand(new MoveX(+10))} role="button" tabindex="0" d="M214.998 39.001C236.076 61.303 249 91.3918 249 124.5C249 157.274 236.336 187.088 215.635 209.32L189.117 182.803C203.326 167.318 212 146.672 212 124C212 101.247 203.265 80.5351 188.966 65.0322L214.998 39.001Z" class="dpad-wedge" />
                             <text x="229" y="128" text-anchor="middle" class="dpad-label">X+10</text>
 
                             <!-- Outer ring: Y-10 (bottom) -->
-                            <path on:click={() => sendWsCommand(new MoveY(-10))} role="button" tabindex="0" d="M66.0322 187.966C81.5351 202.265 102.247 211 125 211C147.498 211 168.001 202.46 183.445 188.445L209.998 214.998C187.696 236.075 157.608 249 124.5 249C91.3918 249 61.303 236.076 39.001 214.998L66.0322 187.966Z" class="dpad-wedge" />
+                            <path onclick={() => sendWsCommand(new MoveY(-10))} role="button" tabindex="0" d="M66.0322 187.966C81.5351 202.265 102.247 211 125 211C147.498 211 168.001 202.46 183.445 188.445L209.998 214.998C187.696 236.075 157.608 249 124.5 249C91.3918 249 61.303 236.076 39.001 214.998L66.0322 187.966Z" class="dpad-wedge" />
                             <text x="124.5" y="234" text-anchor="middle" class="dpad-label">Y-10</text>
 
                             <!-- Inner wedge: Y+1 (top) -->
-                            <path on:click={() => sendWsCommand(new MoveY(+1))} role="button" tabindex="0" d="M125 45C145.208 45 163.643 52.5887 177.613 65.0703L124.5 118.186L71.8584 65.5439C85.8905 52.7801 104.537 45 125 45Z" class="dpad-wedge" />
+                            <path onclick={() => sendWsCommand(new MoveY(+1))} role="button" tabindex="0" d="M125 45C145.208 45 163.643 52.5887 177.613 65.0703L124.5 118.186L71.8584 65.5439C85.8905 52.7801 104.537 45 125 45Z" class="dpad-wedge" />
                             <text x="124.5" y="68" text-anchor="middle" class="dpad-label">Y+1</text>
 
                             <!-- Inner wedge: X-1 (left) -->
-                            <path on:click={() => sendWsCommand(new MoveX(-1))} role="button" tabindex="0" d="M118.843 123.843L66.0703 176.613C53.5887 162.643 46 144.208 46 124C46 103.711 53.6482 85.209 66.2188 71.2188L118.843 123.843Z" class="dpad-wedge" />
+                            <path onclick={() => sendWsCommand(new MoveX(-1))} role="button" tabindex="0" d="M118.843 123.843L66.0703 176.613C53.5887 162.643 46 144.208 46 124C46 103.711 53.6482 85.209 66.2188 71.2188L118.843 123.843Z" class="dpad-wedge" />
                             <text x="72" y="128" text-anchor="middle" class="dpad-label">X-1</text>
 
                             <!-- Inner wedge: X+1 (right) -->
-                            <path on:click={() => sendWsCommand(new MoveX(+1))} role="button" tabindex="0" d="M183.305 70.6943C196.158 84.7451 204 103.456 204 124C204 144.463 196.219 163.109 183.455 177.141L130.157 123.843L183.305 70.6943Z" class="dpad-wedge" />
+                            <path onclick={() => sendWsCommand(new MoveX(+1))} role="button" tabindex="0" d="M183.305 70.6943C196.158 84.7451 204 103.456 204 124C204 144.463 196.219 163.109 183.455 177.141L130.157 123.843L183.305 70.6943Z" class="dpad-wedge" />
                             <text x="177" y="128" text-anchor="middle" class="dpad-label">X+1</text>
 
                             <!-- Inner wedge: Y-1 (bottom) -->
-                            <path on:click={() => sendWsCommand(new MoveY(-1))} role="button" tabindex="0" d="M177.78 182.78C163.79 195.351 145.289 203 125 203C104.456 203 85.7451 195.158 71.6943 182.305L124.5 129.5L177.78 182.78Z" class="dpad-wedge" />
+                            <path onclick={() => sendWsCommand(new MoveY(-1))} role="button" tabindex="0" d="M177.78 182.78C163.79 195.351 145.289 203 125 203C104.456 203 85.7451 195.158 71.6943 182.305L124.5 129.5L177.78 182.78Z" class="dpad-wedge" />
                             <text x="124.5" y="190" text-anchor="middle" class="dpad-label">Y-1</text>
 
                             <!-- Center: Home button -->
-                            <circle on:click={() => sendWsCommand(new MoveHome())} role="button" tabindex="0" cx="124.5" cy="124" r="28" class="dpad-home" stroke="hsl(136,64%,38%)" stroke-width="2" />
+                            <circle onclick={() => sendWsCommand(new MoveHome())} role="button" tabindex="0" cx="124.5" cy="124" r="28" class="dpad-home" stroke="hsl(136,64%,38%)" stroke-width="2" />
                             <g pointer-events="none" transform="translate(124.5, 124)">
                                 <path d="M0-10l-9 7.5v9.5a1.5 1.5 0 001.5 1.5h5v-5h5v5h5a1.5 1.5 0 001.5-1.5v-9.5z" fill="none" stroke="hsl(136, 64%, 38%)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                             </g>
@@ -615,10 +610,9 @@
                             <Lightbulb class="h-4 w-4 shrink-0 text-muted-foreground" />
                             <Switch
                                 id="printer-light-mobile"
-                                checked={controls.chamberLight.value}
+                                checked={chamberLightOn}
                                 onCheckedChange={(enabled: boolean) => {
-                                    controls.chamberLight.onChange(enabled);
-                                    controls.chamberLight.onCommit(enabled);
+                                    sendWsCommand(new ChamberLight(enabled));
                                 }}
                             />
                         </div>
@@ -663,31 +657,31 @@
                             .dpad-home { fill: var(--dpad-home); cursor: pointer; transition: fill 0.15s; }
                             .dpad-home:hover { fill: var(--dpad-home-hover); }
                         </style>
-                        <path on:click={() => sendWsCommand(new MoveY(+10))} role="button" tabindex="0" d="M124.5 0C157.273 0 187.088 12.6638 209.32 33.3643L183.279 59.4053C167.854 45.4795 147.418 37 125 37C102.328 37 81.681 45.673 66.1963 59.8818L39.6787 33.3643C61.9107 12.6635 91.7265 0 124.5 0Z" class="dpad-wedge" />
+                        <path onclick={() => sendWsCommand(new MoveY(+10))} role="button" tabindex="0" d="M124.5 0C157.273 0 187.088 12.6638 209.32 33.3643L183.279 59.4053C167.854 45.4795 147.418 37 125 37C102.328 37 81.681 45.673 66.1963 59.8818L39.6787 33.3643C61.9107 12.6635 91.7265 0 124.5 0Z" class="dpad-wedge" />
                         <text x="124.5" y="22" text-anchor="middle" class="dpad-label">Y+10</text>
 
-                        <path on:click={() => sendWsCommand(new MoveX(-10))} role="button" tabindex="0" d="M60.5537 65.5537C46.5389 80.9979 38 101.502 38 124C38 146.418 46.4795 166.854 60.4053 182.279L33.3643 209.32C12.6638 187.088 0 157.273 0 124.5C0 91.392 12.9237 61.3029 34.001 39.001L60.5537 65.5537Z" class="dpad-wedge" />
+                        <path onclick={() => sendWsCommand(new MoveX(-10))} role="button" tabindex="0" d="M60.5537 65.5537C46.5389 80.9979 38 101.502 38 124C38 146.418 46.4795 166.854 60.4053 182.279L33.3643 209.32C12.6638 187.088 0 157.273 0 124.5C0 91.392 12.9237 61.3029 34.001 39.001L60.5537 65.5537Z" class="dpad-wedge" />
                         <text x="20" y="128" text-anchor="middle" class="dpad-label">X-10</text>
 
-                        <path on:click={() => sendWsCommand(new MoveX(+10))} role="button" tabindex="0" d="M214.998 39.001C236.076 61.303 249 91.3918 249 124.5C249 157.274 236.336 187.088 215.635 209.32L189.117 182.803C203.326 167.318 212 146.672 212 124C212 101.247 203.265 80.5351 188.966 65.0322L214.998 39.001Z" class="dpad-wedge" />
+                        <path onclick={() => sendWsCommand(new MoveX(+10))} role="button" tabindex="0" d="M214.998 39.001C236.076 61.303 249 91.3918 249 124.5C249 157.274 236.336 187.088 215.635 209.32L189.117 182.803C203.326 167.318 212 146.672 212 124C212 101.247 203.265 80.5351 188.966 65.0322L214.998 39.001Z" class="dpad-wedge" />
                         <text x="229" y="128" text-anchor="middle" class="dpad-label">X+10</text>
 
-                        <path on:click={() => sendWsCommand(new MoveY(-10))} role="button" tabindex="0" d="M66.0322 187.966C81.5351 202.265 102.247 211 125 211C147.498 211 168.001 202.46 183.445 188.445L209.998 214.998C187.696 236.075 157.608 249 124.5 249C91.3918 249 61.303 236.076 39.001 214.998L66.0322 187.966Z" class="dpad-wedge" />
+                        <path onclick={() => sendWsCommand(new MoveY(-10))} role="button" tabindex="0" d="M66.0322 187.966C81.5351 202.265 102.247 211 125 211C147.498 211 168.001 202.46 183.445 188.445L209.998 214.998C187.696 236.075 157.608 249 124.5 249C91.3918 249 61.303 236.076 39.001 214.998L66.0322 187.966Z" class="dpad-wedge" />
                         <text x="124.5" y="234" text-anchor="middle" class="dpad-label">Y-10</text>
 
-                        <path on:click={() => sendWsCommand(new MoveY(+1))} role="button" tabindex="0" d="M125 45C145.208 45 163.643 52.5887 177.613 65.0703L124.5 118.186L71.8584 65.5439C85.8905 52.7801 104.537 45 125 45Z" class="dpad-wedge" />
+                        <path onclick={() => sendWsCommand(new MoveY(+1))} role="button" tabindex="0" d="M125 45C145.208 45 163.643 52.5887 177.613 65.0703L124.5 118.186L71.8584 65.5439C85.8905 52.7801 104.537 45 125 45Z" class="dpad-wedge" />
                         <text x="124.5" y="68" text-anchor="middle" class="dpad-label">Y+1</text>
 
-                        <path on:click={() => sendWsCommand(new MoveX(-1))} role="button" tabindex="0" d="M118.843 123.843L66.0703 176.613C53.5887 162.643 46 144.208 46 124C46 103.711 53.6482 85.209 66.2188 71.2188L118.843 123.843Z" class="dpad-wedge" />
+                        <path onclick={() => sendWsCommand(new MoveX(-1))} role="button" tabindex="0" d="M118.843 123.843L66.0703 176.613C53.5887 162.643 46 144.208 46 124C46 103.711 53.6482 85.209 66.2188 71.2188L118.843 123.843Z" class="dpad-wedge" />
                         <text x="72" y="128" text-anchor="middle" class="dpad-label">X-1</text>
 
-                        <path on:click={() => sendWsCommand(new MoveX(+1))} role="button" tabindex="0" d="M183.305 70.6943C196.158 84.7451 204 103.456 204 124C204 144.463 196.219 163.109 183.455 177.141L130.157 123.843L183.305 70.6943Z" class="dpad-wedge" />
+                        <path onclick={() => sendWsCommand(new MoveX(+1))} role="button" tabindex="0" d="M183.305 70.6943C196.158 84.7451 204 103.456 204 124C204 144.463 196.219 163.109 183.455 177.141L130.157 123.843L183.305 70.6943Z" class="dpad-wedge" />
                         <text x="177" y="128" text-anchor="middle" class="dpad-label">X+1</text>
 
-                        <path on:click={() => sendWsCommand(new MoveY(-1))} role="button" tabindex="0" d="M177.78 182.78C163.79 195.351 145.289 203 125 203C104.456 203 85.7451 195.158 71.6943 182.305L124.5 129.5L177.78 182.78Z" class="dpad-wedge" />
+                        <path onclick={() => sendWsCommand(new MoveY(-1))} role="button" tabindex="0" d="M177.78 182.78C163.79 195.351 145.289 203 125 203C104.456 203 85.7451 195.158 71.6943 182.305L124.5 129.5L177.78 182.78Z" class="dpad-wedge" />
                         <text x="124.5" y="190" text-anchor="middle" class="dpad-label">Y-1</text>
 
-                        <circle on:click={() => sendWsCommand(new MoveHome())} role="button" tabindex="0" cx="124.5" cy="124" r="28" class="dpad-home" stroke="hsl(136,64%,38%)" stroke-width="2" />
+                        <circle onclick={() => sendWsCommand(new MoveHome())} role="button" tabindex="0" cx="124.5" cy="124" r="28" class="dpad-home" stroke="hsl(136,64%,38%)" stroke-width="2" />
                         <g pointer-events="none" transform="translate(124.5, 124)">
                             <path d="M0-10l-9 7.5v9.5a1.5 1.5 0 001.5 1.5h5v-5h5v5h5a1.5 1.5 0 001.5-1.5v-9.5z" fill="none" stroke="hsl(136, 64%, 38%)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
                         </g>
