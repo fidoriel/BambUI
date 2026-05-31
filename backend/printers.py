@@ -12,6 +12,7 @@ from .types_ws import WsJpegImage
 from .printer_payload import pushall_command
 import ssl
 import asyncio
+import time
 from aiomqtt.client import Client as MqttClient
 from aiomqtt.exceptions import MqttError
 import json
@@ -46,6 +47,7 @@ class Printer:
 
     full_push: bool = False
     latest_image: bytes | None = None
+    latest_image_time: float | None = None
 
     def __init__(
         self,
@@ -68,6 +70,7 @@ class Printer:
         self.printer_status_values = {}
         self.printer_subscriber_task = None
         self._notified_milestones: set[str] = set()
+        self._image_event = asyncio.Event()
 
     @property
     def request_topic(self) -> str:
@@ -83,7 +86,46 @@ class Printer:
 
     async def image_callback(self, image: bytes) -> None:
         self.latest_image = image
+        self.latest_image_time = time.monotonic()
+        self._image_event.set()
         await self.callback_all_connected_ws(WsJpegImage.from_bytes(image))
+
+    async def capture_fresh_image(self, timeout: float = 10) -> bytes | None:
+        previous_image_time = self.latest_image_time or 0
+        started_for_capture = (
+            self.camera_client is None or not self.camera_client.streaming
+        )
+
+        await self.start_camera()
+
+        deadline = time.monotonic() + timeout
+        try:
+            while time.monotonic() < deadline:
+                self._image_event.clear()
+                if (
+                    self.latest_image is not None
+                    and self.latest_image_time is not None
+                    and self.latest_image_time > previous_image_time
+                ):
+                    return self.latest_image
+
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                try:
+                    await asyncio.wait_for(self._image_event.wait(), timeout=remaining)
+                except asyncio.TimeoutError:
+                    break
+        finally:
+            if (
+                started_for_capture
+                and not self.subscribers
+                and self.camera_client is not None
+            ):
+                await self.camera_client.stop_stream()
+                self.camera_client = None
+
+        return None
 
     async def _send_print_notification(self, text: str) -> None:
         from .bot import bot
@@ -92,8 +134,9 @@ class Printer:
         caption = f"{self.name}: {text}"
         if subtask:
             caption += f" ({subtask})"
-        if self.latest_image is not None:
-            await bot.send_photo(self.latest_image, caption)
+        image = await self.capture_fresh_image()
+        if image is not None:
+            await bot.send_photo(image, caption)
         else:
             await bot.send(caption)
 

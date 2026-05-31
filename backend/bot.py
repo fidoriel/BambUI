@@ -86,7 +86,7 @@ class TelegramBot:
         from .printer_payload import enable_light
 
         printer = printers.get(printer_name)
-        if printer is None or not printer.full_push:
+        if printer is None:
             if self.bot:
                 await self.bot.send_message(
                     chat_id=chat_id,
@@ -106,10 +106,9 @@ class TelegramBot:
                 await printer.publish_request(cmd)
             await asyncio.sleep(0.5)
 
-        if self.bot and printer.latest_image is not None:
-            photo = BufferedInputFile(
-                file=printer.latest_image, filename=f"{printer_name}.jpg"
-            )
+        image = await printer.capture_fresh_image()
+        if self.bot and image is not None:
+            photo = BufferedInputFile(file=image, filename=f"{printer_name}.jpg")
             await self.bot.send_photo(
                 chat_id=chat_id, photo=photo, caption=printer_name
             )
@@ -135,19 +134,13 @@ class TelegramBot:
             await message.answer("No printers configured.")
             return
 
-        connected = {name: p for name, p in printers.items() if p.full_push}
-
-        if not connected:
-            await message.answer("No printers are currently connected.")
-            return
-
-        if len(connected) == 1:
-            name = next(iter(connected))
+        if len(printers) == 1:
+            name = next(iter(printers))
             await self._send_printer_image(name, message.chat.id)
             return
 
         builder = InlineKeyboardBuilder()
-        for name in connected:
+        for name in printers:
             builder.button(
                 text=name,
                 callback_data=ImageCallback(printer_name=name),
